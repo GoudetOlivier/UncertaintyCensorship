@@ -3,6 +3,7 @@ from scipy.stats import expon
 import matplotlib.pyplot as plt
 import math
 
+#Hello
 
 def biquadratic_kernel(x):
     return np.where(x<=1,15/16*(1-x**2)**2,0)
