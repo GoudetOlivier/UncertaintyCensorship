@@ -6,7 +6,7 @@ import math
 #Hello
 
 def biquadratic_kernel(x):
-    return np.where(x<=1,15/16*(1-x**2)**2,0)
+    return np.where(np.absolute(x)<=1,15/16*(1-x**2)**2,0)
 
 def RBF_kernel(x):
     return np.exp(-0.1*x**2)
