@@ -83,12 +83,63 @@ class Net(nn.Module):
     def __init__(self,d_in,d_out,depth,width):
         super(Net, self).__init__()
 
+        self.d_in = d_in
+        self.width = width
+
         # layers
-        self.fc_in = nn.Linear(d_in, width)
+        if d_in > 1 :
+            self.fc_in = nn.Linear(d_in, width)
+        else:
+            self.fc_in = nn.Linear(width, width)
+
         self.fc_out = nn.Linear(width,d_out)
         self.hidden = nn.ModuleList([nn.Linear(width, width) for i in range(depth-2)])
 
     def forward(self, x):
-        x = nn.ReLU(self.fc_in(x))
-        x = self.fc_out([nn.ReLU(hidden_layer(x)) for hidden_layer in self.hidden])
+        if self.d_in == 1 :
+            x = torch.tensor(x.item()*np.ones(self.width))
+
+        x = F.relu(self.fc_in(x))
+        
+        for hidden_layer in self.hidden:
+            x = F.relu(hidden_layer(x))
+        
+        x = F.relu(self.fc_out(x))
         return x
+
+
+##########
+#  Main  #
+##########
+
+n_loop = 50
+size = 100
+
+#np.random.seed(0)
+x = np.random.uniform(low=0.0, high=1.0, size=size)
+y = 2*x+1
+
+inputs = torch.tensor(x,dtype=torch.double)
+output = torch.ones(size,dtype=torch.double)
+target = torch.tensor(y,dtype=torch.double)
+
+net = Net(1,1,3,2)
+net.to(torch.double)
+
+optimizer = torch.optim.SGD(net.parameters(),lr=.1)
+
+criterion = nn.MSELoss()
+
+for k in range(n_loop):
+
+    optimizer.zero_grad()
+
+    for i in range(size):
+        output[i] = net.forward(inputs[i])
+
+    loss = criterion(output,target)
+    print(k,loss.item())
+    loss.backward(retain_graph=True)
+    optimizer.step()
+
+print(net.forward(torch.tensor(1.5)))
