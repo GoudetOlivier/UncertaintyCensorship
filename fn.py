@@ -96,8 +96,11 @@ class Net(nn.Module):
         self.hidden = nn.ModuleList([nn.Linear(width, width) for i in range(depth-2)])
 
     def forward(self, x):
+
+        x = x.to(device)
+
         if self.d_in == 1 :
-            x = torch.tensor(x.item()*np.ones(self.width))
+            x = torch.tensor(x.item()*np.ones(self.width),device=x.device)
 
         x = F.relu(self.fc_in(x))
         
@@ -116,15 +119,18 @@ n_loop = 50
 size = 100
 
 #np.random.seed(0)
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+print(device)
 x = np.random.uniform(low=0.0, high=1.0, size=size)
 y = 2*x+1
 
-inputs = torch.tensor(x,dtype=torch.double)
-output = torch.ones(size,dtype=torch.double)
-target = torch.tensor(y,dtype=torch.double)
+inputs = torch.tensor(x,dtype=torch.double,device=device)
+output = torch.ones(size,dtype=torch.double,device=device)
+target = torch.tensor(y,dtype=torch.double,device=device)
 
-net = Net(1,1,3,2)
+net = Net(1,1,3,10)
 net.to(torch.double)
+net.to(device)
 
 optimizer = torch.optim.SGD(net.parameters(),lr=.1)
 
@@ -142,4 +148,4 @@ for k in range(n_loop):
     loss.backward(retain_graph=True)
     optimizer.step()
 
-print(net.forward(torch.tensor(1.5)))
+print(net.forward(torch.tensor(.5)))
