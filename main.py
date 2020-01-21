@@ -1,21 +1,30 @@
+from fn import *
+
 ##########
 #  Main  #
 ##########
 
-n_loop = 50
-size = 100
+sample_size = 200
+nb_iter = 100
 
-#np.random.seed(0)
+error_threshold = 0.01
+
+depth = 3
+width = 10
+
+a0 = 1
+a1 = 10
+a2 = 10
+
+b0 = 0.5
+b1 = 5
+b2 = 5
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-print(device)
-x = np.random.uniform(low=0.0, high=1.0, size=size)
-y = 2*x+1
 
-inputs = torch.tensor(x,dtype=torch.double,device=device)
-output = torch.ones(size,dtype=torch.double,device=device)
-target = torch.tensor(y,dtype=torch.double,device=device)
+surv, censor, obs, delta,  xi, x = gen_data(nb_iter,sample_size, a0, a1, a2, b0, b1, b2)
 
-net = Net(1,1,3,10)
+net = Net(1,1,depth,width)
 net.to(torch.double)
 net.to(device)
 
@@ -23,14 +32,27 @@ optimizer = torch.optim.SGD(net.parameters(),lr=.1)
 
 criterion = nn.MSELoss()
 
-for k in range(n_loop):
+inputs = torch.tensor(x,dtype=torch.double,device=device)
+output = torch.ones([nb_iter,sample_size],dtype=torch.double,device=device)
+target = torch.tensor(censor,dtype=torch.double,device=device)
 
-    optimizer.zero_grad()
+for k in range(nb_iter):
+	error = 1000
+	loop_c = 0
+	while error > error_threshold:
+		
+		loop_c += 1
 
-    for i in range(size):
-        output[i] = net.forward(inputs[i])
+		for i in range(sample_size):
+			output[k,i] = net.forward(inputs[k,i])
 
-    loss = criterion(output,target)
-    print(k,loss.item())
-    loss.backward(retain_graph=True)
-    optimizer.step()
+		loss = criterion(output,target)
+		error = loss.item()
+		loss.backward(retain_graph=True)
+		
+		if np.mod(loop_c,8)==0:
+			optimizer.step()
+			optimizer.zero_grad()
+
+
+		print(k,error)

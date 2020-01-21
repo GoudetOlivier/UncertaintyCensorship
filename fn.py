@@ -19,7 +19,7 @@ def quad_kern(x):
 ##############################################################
 def gen_data(nb_iter,size, a0, a1, a2, b0, b1, b2):
 
-    np.random.seed(0)
+    #np.random.seed(0)
 
     p = 0.5
 
@@ -96,8 +96,6 @@ class Net(nn.Module):
         self.hidden = nn.ModuleList([nn.Linear(width, width) for i in range(depth-2)])
 
     def forward(self, x):
-
-        x = x.to(device)
 
         if self.d_in == 1 :
             x = torch.tensor(x.item()*np.ones(self.width),device=x.device)
