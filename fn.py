@@ -7,6 +7,7 @@ from scipy.stats import expon
 import torch 
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.autograd import Variable
 
 #############################################
 # Kernel function for regression estimation #
@@ -80,30 +81,14 @@ def gene_Beran(t, obs, p, x=None, x_eval=None, h=1, mode_km=False):
 ########################
 class Net(nn.Module):
 
-    def __init__(self,d_in,d_out,depth,width):
+    def __init__(self,layers_size):
         super(Net, self).__init__()
-
-        self.d_in = d_in
-        self.width = width
-
-        # layers
-        if d_in > 1 :
-            self.fc_in = nn.Linear(d_in, width)
-        else:
-            self.fc_in = nn.Linear(width, width)
-
-        self.fc_out = nn.Linear(width,d_out)
-        self.hidden = nn.ModuleList([nn.Linear(width, width) for i in range(depth-2)])
+        self.layers_size = layers_size
+        self.hidden = nn.ModuleList([nn.Linear(layers_size[i], layers_size[i+1]) for i in range(len(layers_size)-1)])
 
     def forward(self, x):
-
-        if self.d_in == 1 :
-            x = torch.tensor(x.item()*np.ones(self.width),device=x.device)
-
-        x = F.relu(self.fc_in(x))
-        
+        if x.dim() == 0 :
+            x = torch.tensor(x.item()*np.ones(self.layers_size[0]),device=x.device)
         for hidden_layer in self.hidden:
             x = F.relu(hidden_layer(x))
-        
-        x = F.relu(self.fc_out(x))
         return x
