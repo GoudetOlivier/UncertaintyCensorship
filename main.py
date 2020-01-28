@@ -1,4 +1,5 @@
 from fn import *
+from tqdm import tqdm
 
 ##########
 #  Main  #
@@ -25,37 +26,49 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 surv, censor, obs, delta,  xi, x = gen_data(nb_iter,sample_size, a0, a1, a2, b0, b1, b2)
 
 net = Net(layers_size)
-net.to(torch.double)
+# net.to(torch.float)
 net.to(device)
 
-optimizer = torch.optim.SGD(net.parameters(),lr=.1)
+optimizer = torch.optim.Adam(net.parameters(),lr=.001)
 
 criterion = nn.MSELoss()
 
 #inputs = torch.tensor([obs,x],dtype=torch.double,device=device)
 #target = torch.tensor(delta,dtype=torch.double,device=device)
-outputs_batch = torch.ones(sample_size,dtype=torch.double,device=device)
+outputs_batch = torch.ones(sample_size,dtype=torch.float,device=device)
+
+
+nb_epoch = 1000000
 
 for k in range(nb_iter):
 	error = 1000
 	loop_c = 0
 
-	inputs_batch = torch.tensor([obs[k,], x[k,]],dtype=torch.double,device=device)
-	target_batch = torch.tensor(delta[k,],dtype=torch.double,device=device)
+	inputs_batch = torch.transpose(torch.tensor([obs[k,], x[k,]],dtype=torch.float,device=device),0,1)
+	target_batch = torch.tensor(delta[k,],dtype=torch.float,device=device)
 
-	while error > error_threshold:
+	target_batch = target_batch.view(-1,1)
+
+	pbar = tqdm(range(nb_epoch))
+
+	net.reset_parameters()
+
+	for epoch in pbar:
 		
 		loop_c += 1
 
-		for i in range(sample_size):
-			outputs_batch[i] = net.forward(inputs_batch[:,i])
+
+		outputs_batch = net(inputs_batch)
+
 
 		loss = criterion(outputs_batch,target_batch)
+
 		error = loss.item()
 
-		loss.backward(retain_graph=True)
-			
+		loss.backward()
+
 		optimizer.step()
 		optimizer.zero_grad()
 
-		print(k,loss)
+
+		pbar.set_postfix(loss=loss.item())

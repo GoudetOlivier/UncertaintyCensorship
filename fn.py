@@ -79,16 +79,48 @@ def gene_Beran(t, obs, p, x=None, x_eval=None, h=1, mode_km=False):
 ########################
 # Neural Network model #
 ########################
+# class Net(nn.Module):
+#
+#     def __init__(self,layers_size):
+#         super(Net, self).__init__()
+#         self.layers_size = layers_size
+#         self.hidden = nn.ModuleList([nn.Linear(layers_size[i], layers_size[i+1]) for i in range(len(layers_size)-1)])
+#
+#     def forward(self, x):
+#         if x.dim() == 0 :
+#             x = torch.tensor(x.item()*np.ones(self.layers_size[0]),device=x.device)
+#         for hidden_layer in self.hidden:
+#             x = F.relu(hidden_layer(x))
+#         return x
+
+
 class Net(nn.Module):
 
     def __init__(self,layers_size):
         super(Net, self).__init__()
         self.layers_size = layers_size
-        self.hidden = nn.ModuleList([nn.Linear(layers_size[i], layers_size[i+1]) for i in range(len(layers_size)-1)])
+        layers = []
+
+
+        for i in range(len(layers_size) - 1):
+            layers.append(nn.Linear(layers_size[i], layers_size[i+1]))
+            if(i != len(layers_size) - 2):
+                layers.append(nn.LeakyReLU(.2))
+
+
+        self.layers = nn.Sequential(*layers)
+
+
 
     def forward(self, x):
-        if x.dim() == 0 :
-            x = torch.tensor(x.item()*np.ones(self.layers_size[0]),device=x.device)
-        for hidden_layer in self.hidden:
-            x = F.relu(hidden_layer(x))
-        return x
+
+        # if x.dim() == 0 :
+        #     x = torch.tensor(x.item()*np.ones(self.layers_size[0]),device=x.device)
+        # for hidden_layer in self.hidden:
+        #     x = F.relu(hidden_layer(x))
+        return self.layers(x)
+
+    def reset_parameters(self):
+        for layer in self.layers:
+            if hasattr(layer, 'reset_parameters'):
+                layer.reset_parameters()
