@@ -3,7 +3,6 @@ from scipy.stats import expon
 import matplotlib.pyplot as plt
 import math
 
-#Hello
 
 def biquadratic_kernel(x):
     return np.where(np.absolute(x)<=1,15/16*(1-x**2)**2,0)
@@ -25,7 +24,6 @@ def generate_data(nb_iter,size, a0, a1, a2, b0, b1, b2):
 
     delta = np.where(y<=c,1,0)
 
-    #p = np.ones((nb_iter,size))*0.7
     p = 1/(1+t)
 
     u = np.random.uniform(low=0.0, high=1.0, size=(nb_iter,size))
@@ -42,8 +40,6 @@ def generate_data(nb_iter,size, a0, a1, a2, b0, b1, b2):
         xi[i, :] = xi[i, index[i, :]]
         p[i,:] = p[i, index[i, :]]
         x[i, :] = x[i, index[i, :]]
-
-
 
     return t, c, y, delta,  xi, p, x
 

@@ -1,101 +1,132 @@
 from fn import *
-from tqdm import tqdm
+import torch
 from os import system
 import matplotlib.pyplot as plt
 import math
+from tqdm import tqdm
+
+from neuralnets import NNetWrapper as nnetwrapper
+from sklearn import neighbors
+from sklearn import svm
+from sklearn import tree
+from sklearn.linear_model import LogisticRegression
+from scipy.stats import exponweib
+
 
 ##########
 #  Main  #
 ##########
 sample_size = 1000
 nb_iter = 100
-nb_epoch = 200
 
-error_threshold = 0.01
-
-layers_size = [2,1000,1]
 x_list = [.3,.5,.7]
 
-a0 = 3
-a1 = .5
-a2 = .7
 
-b0 = 1
-b1 = .5
-b2 = .4
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-#device="cpu"
+# a0 = 3
+# a1 = .5
+# a2 = .7
+# b0 = 1
+# b1 = .5
+# b2 = .4
+#surv, censor, obs, delta,  xi, x = gen_data_exponential(nb_iter,sample_size, a0, a1, a2, b0, b1, b2)
 
-surv, censor, obs, delta,  xi, x = gen_data(nb_iter,sample_size, a0, a1, a2, b0, b1, b2)
+surv, censor, obs, delta,  xi, x = gen_data_weibull(nb_iter,sample_size)
 
-p = np.zeros((nb_iter,sample_size))
-###################
-# Neural Network  #
-###################
-print('Neural network training : sample size =',sample_size,'iteration =',nb_iter,'epoch =',nb_epoch)
-net = Net(layers_size)
-# net.to(torch.float)
-net.to(device)
+X = np.stack((obs, x),2)
+y = delta
 
-optimizer = torch.optim.SGD(net.parameters(),lr=.001)
-criterion = nn.L1Loss()
+dict_p = {}
 
-#inputs = torch.tensor([obs,x],dtype=torch.double,device=device)
-#target = torch.tensor(delta,dtype=torch.double,device=device)
-outputs_batch = torch.ones(sample_size,dtype=torch.float,device=device)
+#list_model = ["Standard_beran","NN","DecisionTree","KNN","LogisticRegression"]
+list_model = ["Standard_beran","NN","DecisionTree","KNN","LogisticRegression"]
 
-pbar = tqdm(range(nb_iter))
+for type_model in list_model:
 
-for k in pbar:
+	print(type_model)
 
-	inputs_batch = torch.transpose(torch.tensor([obs[k,], x[k,]],dtype=torch.float,device=device),0,1)
-	target_batch = torch.tensor(delta[k,],dtype=torch.float,device=device)
+	p = np.zeros((nb_iter, sample_size))
 
-	target_batch = target_batch.view(-1,1)
+	if (type_model == "Standard_beran"):
 
-	net.reset_parameters()
+		p = delta
 
-	for epoch in range(nb_epoch):
-		
-		outputs_batch = net(inputs_batch)
+	elif(type_model == "NN"):
 
-		loss = criterion(outputs_batch,target_batch)
+		nb_epoch = 1000
+		layers_size = [2, 200, 1]
+		isParallel_run = True
 
-		loss.backward()
+		# device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+		device = "cpu"
 
-		optimizer.step()
-		optimizer.zero_grad()
+		nnet = nnetwrapper(nb_iter, layers_size, device, isParallel_run)
 
-	p[k,:] = outputs_batch.cpu().data.numpy()[:,0]
+		if (isParallel_run):
+			nnet.fit(nb_epoch, X, y)
+			p = nnet.predict(X)
+		else:
+			for k in range(nb_iter):
+				print("iter : " + str(k))
 
-	side = ((target_batch-outputs_batch)**2).mean().item(),2*(target_batch*(target_batch-outputs_batch)).mean().item()
+				nnet.fit(nb_epoch, X[k,], y[k,])
+				p[k, :] = nnet.predict(X[k,])
 
-	pbar.set_postfix(loss=loss.item())
+	else:
+		for k in range(nb_iter):
+
+			if(type_model == "DecisionTree"):
+				clf = tree.DecisionTreeClassifier(min_samples_split=50)
+			elif(type_model =="KNN"):
+				n_neighbors = 300
+				clf = neighbors.KNeighborsClassifier(n_neighbors)
+			elif(type_model =="LogisticRegression"):
+				clf = LogisticRegression(random_state=0)
+
+
+			clf.fit(X[k,], y[k,])
+
+			p[k, :] = clf.predict_proba(X[k,])[:,1]
+
+	dict_p[type_model] = p
+
 
 #######################
 # Survival estimation #
 #######################
 print('Survival estimators computing')
 
+
+dict_beran = {}
+
+
 t = np.linspace(np.amin(surv),np.amax(surv),num=100)
-beran = np.zeros((nb_iter,len(t),len(x_list)))
-nn_beran = np.zeros((nb_iter,len(t),len(x_list)))
 
-for k in pbar:
 
-	#Bandwidth selection
-	h = .1
-	c_x = 0
-	for x_eval in x_list:
-		#Estimators computation
-		beran[k,:,c_x] = gene_Beran(t,surv[k,:],delta[k,:],x[k,:],x_eval,h)
-		nn_beran[k,:,c_x] = gene_Beran(t,surv[k,:],p[k,:],x[k,:],x_eval,h)
+for type_model in list_model:
 
-		c_x += 1
+	print(type_model)
 
-np.save('save/beran',beran)
-np.save('save/nn_beran',nn_beran)
+	beran = np.zeros((nb_iter,len(t),len(x_list)))
+
+	pbar = tqdm(range(nb_iter))
+
+	p = dict_p[type_model]
+
+	for k in pbar:
+		# Bandwidth selection
+		h = .2
+		c_x = 0
+		for x_eval in x_list:
+			# Estimators computation
+			beran[k, :, c_x] = gene_Beran(t, surv[k, :], p[k, :], x[k, :], x_eval, h)
+			c_x += 1
+
+	dict_beran[type_model] = beran
+
+	np.save("save/" + type_model, beran)
+
+
 
 ################
 # Plot results #
@@ -104,24 +135,28 @@ plt.figure()
 
 for i in range(len(x_list)):
 
-	true_cdf = expon(scale=1/(a0+a1*x_list[i]+a2*x_list[i]**2)).cdf(t)
+	#true_cdf = expon(scale=1/(a0+a1*x_list[i]+a2*x_list[i]**2)).cdf(t)
+	true_cdf = exponweib.cdf(t, 1, 0.5*(x_list[i] + 4))
 
-	mean_beran = np.mean(beran[:,:,i],axis=0)
-	mean_nn_beran = np.mean(nn_beran[:,:,i],axis=0)
+	plt.subplot(len(x_list), 2, 2 * i + 1 )
+	plt.plot(t, true_cdf, label='cdf')
 
-	mise_beran = np.mean((beran[:,:,i]-true_cdf)**2,axis=0)
-	mise_nn_beran = np.mean((nn_beran[:,:,i]-true_cdf)**2,axis=0)
+	for type_model in list_model:
 
-	plt.subplot(len(x_list),2,2*i+1)
-	plt.plot(t,mean_beran,label='Beran')
-	plt.plot(t,mean_nn_beran,label='NN Beran')
-	plt.plot(t,true_cdf,label='cdf')
+		beran = dict_beran[type_model]
+		mean_beran = np.mean(beran[:,:,i],axis=0)
+		plt.plot(t,mean_beran,label=type_model)
 
 	plt.legend()
 
 	plt.subplot(len(x_list),2,2*(i+1))
-	plt.plot(t,mise_beran,label='Beran')
-	plt.plot(t,mise_nn_beran,label='NN Beran')
+
+	for type_model in list_model:
+
+		beran = dict_beran[type_model]
+		mise_beran = np.mean((beran[:, :, i] - true_cdf) ** 2, axis=0)
+		plt.plot(t,mise_beran,label=type_model)
 
 	plt.legend()
+
 plt.show()

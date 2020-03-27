@@ -1,0 +1,419 @@
+\documentclass[12pt]{article}
+
+\usepackage{amsmath}
+\usepackage{wrapfig}
+\usepackage{amssymb}
+\usepackage{mathrsfs}
+\usepackage{color}
+\usepackage{graphicx}
+\usepackage{mathabx}
+\usepackage{dsfont}
+\usepackage{float}
+\usepackage{epsfig}
+\usepackage{lscape}
+\usepackage[bottom]{footmisc}
+\usepackage{multirow}
+%\usepackage{booktabs}
+\usepackage{caption}
+%\usepackage{todonotes}
+
+\newcommand{\olivier}[1]{\todo[inline,color=green!40]{#1 -- Olivier}}
+\newcommand{\mikael}[1]{\todo[inline,color=orange!40]{#1 -- Mikael}}
+
+
+\oddsidemargin 0mm \textwidth 160mm \topmargin 00mm \textheight 210mm
+%\setlength\parindent{0pt}
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{assumption}{Assumption}
+\newtheorem{definition}{Definition}[section]
+\newtheorem{condition}{Condition}
+\newtheorem{proposition}{Proposition}[section]
+\newtheorem{corollary}{Corollary}[section]
+\newtheorem{lemma}{Lemma}[section]
+\newtheorem{remark}{Remark}[section]
+
+\makeatletter
+\renewcommand\theequation{\thesection.\arabic{equation}}
+\@addtoreset{equation}{section}
+\makeatother
+
+\newenvironment{proof}{\vspace{1ex}\noindent{\bf Proof:} }{
+\mbox{}\hspace{\fill}\rule{1ex}{1ex}\vspace{1.5ex}}
+
+\def\cqfd{$\sqcup\!\!\!\!\sqcap$}
+\def\ind{ {{\rm 1}\hskip-2.2pt{\rm l}}}
+
+\usepackage{natbib}
+
+\begin{document}
+
+\title{\bf A generalized conditional Kaplan-Meier estimator for uncertain or unknown censorship.}
+
+\author{
+{\large Mikael E\textsc{scobar}-B\textsc{ach}} \\ {\it Universit\'e d'Angers} 
+\and 
+{\large Olivier G\textsc{oudet}} \\ {\it Universit\'e d'Angers}
+}
+
+\date{\today}
+
+\maketitle
+
+\begin{abstract}
+Along with the analysis of time-to-event data, it is common to assume that only a partial information is given at hand. In the presence of \textit{right-censored} data with covariates, the conditional Kaplan-Meier estimator (also referred as the Beran estimator) is known to propose a consistent estimate for the lifetimes conditional survival function. However, a necessary condition is the clear knowledge of whether each individual is censored or not. In this paper, we consider the natural problem of the censorship uncertainty, that is, when the censoring indicator is reduced to a random indicator $P\in[0,1]$ that characterizes the degree of certainty. We propose a new estimator for the conditional survival function adapted from the conditional Kaplan-Meier estimator and establish its asymptotic normality. Based on this, we further study the supervised learning problem where the conditional survival function is to be predicted with no censorship indicators. To this aim, we investigate various approaches estimating the conditional expectation for $P$. Along with the theoretical results, we illustrate how the estimators work for small samples by means of a simulation study and show their practical applicability with the analysis of patient with breast cancer.       
+\end{abstract}
+
+\smallskip
+\noindent {\bf Key Words:} survival analysis; covariates; right-censoring; survival function; supervised regression. 
+
+\newpage
+\section{Introduction}
+As the volume of data expands, the problem of missing/censoring data has been increasingly present in many fields of statistical applications. In the classical literature of survival analysis, the study of the duration time preceding an event of interest is considered with series of random censors, that might prevent the capture of the whole survival time. This feature is known as \textit{censoring} and arises from restrictions that depend from the nature of the study. For instance, this feature is particularly present in medicine with studies of the survival times before the recovery/decease from a specific chronic disease. Indeed, a patient lifetime or time to occurrence will not continue if it exceeds the study follow-up time, or because of the early withdrawal of the individual from the population under study. This is denoted as a {\it right-censored} observation time, indicating that the event of interest might only occur beyond and represents the most commonly studied censoring type. One can find other examples of right-censoring in a large scope of domains, like in economic (unemployment duration time), social (spending time before marriage or childbearing) or in actuarial science (life-insurance or time before claim).\\
+
+\newpage
+We consider the random vector $(Y,C,P,X)\in\mathbb{R}\times\mathbb{R}\times[0,1]\times\mathbb{R}^p$ and assume that we only observe $(T,P,X)$ where $T:=\min(Y,C)$, $P$ is a the partial censorship indicator and $X$ an explanatory random covariable. Intuitively, $P$ stands for the censorship information on the couple $(Y,C)$, that is greater is $P$ and the more we suspect $Y\leq C$ while $P$ small highly suggests that $Y>C$. Formally, we assume in the sequel that $\forall t\in\mathcal{S}_T\subset\mathbb{R}$ and $\forall x\in\mathcal{S}_X\subset\mathbb{R}^p$
+\begin{eqnarray}
+\label{model}
+\mathbb{E}[P|T=t,X=x]=\mathbb{P}(T\leq C|T=t,X=x)
+\end{eqnarray}
+where $\mathcal{S}_T$ and $\mathcal{S}_X$ are respectively the support for the observations $T$ and $X$. Note that one can retrieve the classical censorship model when $P=\delta:=\ind_{\{Y\leq C\}}$. The conditional distribution functions of the survival and the censoring times are respectively denoted by $F$ and $G$. Recall also that the right end points of the support of the distributions $F$ and $G$ are respectively denoted by $\tau_S(x)$ and $\tau_C(x)$. Finally, we denote $F^\leftarrow$ the generalized inverse function for the distribution function $F$ given by
+\begin{eqnarray*}
+F^\leftarrow(\alpha|x):=\inf\{t,F(t|x)\geq \alpha\},\quad\alpha\in(0,1).
+\end{eqnarray*}
+
+We will work under minimal conditions on the distribution functions, though we have to impose the usual identification assumption that $T$ and $C$ are independent, which implies that $H(t|x):=\mathbb{P}(T \le t|X=x)$ satisfies $1-H(t|x)=(1-F(t|x))(1-G(t|x))$. Here, the right end point for the support of $H_x$ is denoted $\tau_H(x)=\min(\tau_C(x),\tau_S(x))$. In the sequel, we will also use the notations $$H^u(t|x)=\mathbb{P}(T\leq t,\delta=1|X=x)=\int_{-\infty}^t (1-G(s^-|x)) dF(s|x)$$ for the sub-distribution function of the uncensored observations and $\Lambda(\cdot|x)$ for the cumulative hazard function given by
+\begin{eqnarray*} 
+\Lambda(t|x)=\int_{-\infty}^t \dfrac{dH^u(s|x)}{1-H(s^-|x)}.
+\end{eqnarray*} 
+
+\newpage
+\section{Conditional distribution function estimators}
+\label{section_cdf}
+
+\noindent
+The conditional Kaplan-Meier estimator or the so-called Beran estimator of the distribution $F$ is defined as follows. Let assume an independent and identically distributed (i.i.d.) $n$-sized sample drawn from the classical censoring model and denoted $\{(T_i,\delta_i,X_i)\}_{1\leq i\leq n}$. Denote the $i$-th order statistic of $T_1,\ldots,T_n$ by $T_{(i)}$, and denote the corresponding censoring indicator and covariable by $\delta_{(i)}$ and $X_{(i)}$ respectively. In the absence of ties, the Beran estimator is given by
+\begin{eqnarray*}
+F_n(t|x)=1-\prod_{T_{(i)}\leq t}\left(1-\dfrac{W_h(x-X_{(i)})}{1-\sum_{j=1}^{i-1}W_h(x-X_{(j)})}\right)^{\delta_{(i)}},
+\end{eqnarray*}
+where for any $i=1,\ldots,n$,
+\begin{eqnarray*}
+W_h(x-X_i)=\dfrac{K_h(x-X_i)}{\sum_{j=1}^nK_h(x-X_j)},
+\end{eqnarray*}
+
+
+and $K_h(\cdot)=K(\cdot/h)/h^p$ with $K$ a kernel function and $h=h_n$ a non-random positive sequence such that $h_n\rightarrow 0$ as $n\rightarrow \infty$.\\
+
+\noindent
+Adapted to our context, we assume from now on that we only observe the i.i.d. $n$-sized sample $\{(Y_i,P_i,X_i)\}_{1\leq i\leq n}$ drawn the triplet $(T,C,P,X)$. The new estimator of the distribution function $F_x$ is similarly defined as 
+\begin{eqnarray*}
+\widehat{F}_n(t|x)=1-\prod_{T_{(i)}\leq t}\left(1-\dfrac{W_h(x-X_{(i)})}{1-\sum_{j=1}^{i-1}W_h(x-X_{(j)})}\right)^{P_{(i)}},
+\end{eqnarray*}
+where the product over an empty set is defined to be 1. In order to study further study our new estimator, we introduce the empirical estimators for the distribution function $H$, $H_u$ and $\Lambda$ respectively given by
+\begin{gather*}
+H_n(t|x)=\sum_{i=1}^nW_h(x-X_i)\ind_{\{T_i\leq t\}},\\
+H_n^u(t|x)=\sum_{i=1}^nW_h(x-X_i)\ind_{\{T_i\leq t,\delta_i=1\}},\quad \widehat{H}_n^u(t|x)=\sum_{i=1}^nW_h(x-X_i)\ind_{\{T_i\leq t\}}P_i
+\end{gather*}
+and
+\begin{eqnarray*}
+\Lambda_n(t|x) = \int_{-\infty}^t\dfrac{dH_n^u(s|x)}{1-H_n(s^-|x)},\quad\widehat{\Lambda}_n(t|x) = \int_{-\infty}^t\dfrac{d\widehat{H}_n^u(s|x)}{1-H_n(s^-|x)}.
+\end{eqnarray*}
+We finally denote $f_n$ as the kernel estimator for the density function $f$ with $\forall x\in\mathbb{R}^p$
+\begin{eqnarray*}
+f_n(x)=\dfrac{1}{n}\sum_{i=1}^nK_h(x-X_i).
+\end{eqnarray*}
+
+\subsection{Asymptotic properties}
+
+In this section, we study the asymptotic properties of the estimator $\widehat{F}_n(t|x)$. We also assume from now on that $x\in S_X$ defines a fixed reference position. Due to the regression context, we need some H\"older-type conditions on the distribution functions $H$, $H^u$ and $F$ and on the density function $f$ of the covariate $X$. Let $\Vert \cdot \Vert$ be the Euclidean norm in $\mathbb{R}^p$.
+
+\medskip
+
+\noindent
+{\bf Assumption $(\mathcal{H})$.} There exist $0<\eta,\eta' \le 1$ and $c>0$ such that for any $t,s \in\mathbb{R}$ and any $x_1,x_2\in\mathcal{S}_X$,  \\
+$(\mathcal{H}.1)$ $|f(x_1)-f(x_2)|\leq c\Vert x_1-x_2\Vert^\eta$, \\
+$(\mathcal{H}.2)$ $|H(t|x_1)-H(t|x_2)|\leq c\Vert x_1-x_2\Vert^\eta$, \\
+$(\mathcal{H}.3)$ $|H^u(t|x_1)-H^u(s|x_2)|\leq c(\Vert x_1-x_2\Vert^\eta+|t-s|^{\eta'})$, \\
+$(\mathcal{H}.4)$ $|F(t|x)-F(s|x)|\leq c|t-s|^{\eta'}$.\\
+
+Also, some common assumptions on the kernel function need to be imposed.\\
+
+\noindent
+{\bf Assumption $({\cal K})$.} Let $K$ be a bounded density function in $\mathbb R^p$ with support $S_K$ included in the unit ball of $\mathbb{R}^p$ with respect to the euclidean norm.\\ 
+
+\noindent
+{\bf Assumption $(\mathcal{A})$.} The distribution functions $F(.|x)$ and $G(.|x)$ are continuous on $(-\infty,T]$.\\
+
+For convenient reasons, we study the asymptotic behaviour for our estimator through $\widehat{\Lambda}_n$ with the approximation $\widehat{F}_n\approx\exp(-\widehat{\Lambda}_n)$ as given in the following lemma
+
+\begin{lemma}
+\label{lambda}
+Let $\tau_0<\tau_1<\tau_H(x)$. Then we have almost surely that
+\begin{eqnarray*}
+\sup_{t\in[\tau_0,\tau_1]}\left|1-\widehat{F}_n(t|x)-\exp(-\widehat{\Lambda}_n(t|x))\right|&\leq&\Vert K\Vert_\infty \dfrac{\widehat{H}_n^u(T|x)}{nh^pf_n(x)(1-H_n(\tau_1|x))^2}.\\
+&=&\mathcal{O}_\mathbb{P}((nh^p)^{-1}).
+\end{eqnarray*}
+
+In particular, it turns out that
+\begin{eqnarray*}
+\sup_{t\in[\tau_0,\tau_1]}\sqrt{nh^p}\left|1-\widehat{F}_n(t|x)-\exp(-\widehat{\Lambda}_n(t|x))\right|=o_\mathbb{P}(1)
+\end{eqnarray*}  
+when $f(x)>0$. 
+\end{lemma}
+
+This result allows us to focus our study on $\widehat{\Lambda}_n$ instead of $\widehat{F}_n$. We hereby state the almost sure representation for our new estimator.
+
+\begin{theorem}\label{asrep}
+Under the assumtions $(\mathcal{H})$, $(\mathcal{K})$ and $(\mathcal{A})$, for any $\tau_0<\tau_1<\tau_H(x)$, we have for $\tau_0\leq t\leq \tau_1$ and $nh^{2\eta+p}|\log h|=\mathcal{O}(1)$
+\begin{eqnarray*}
+\widehat{F}_n(t|x)-F(t|x)=\sum_{i=1}^nW_h(x-X_i)\widehat{g}(t,T_i,\delta_i,P_i|x)+r_n(t|x)
+\end{eqnarray*}
+where
+\begin{eqnarray*}
+\widehat{g}(t,T_i,\delta_i,P_i|x)&=&(1-F(t|x)) \left\{\int_{-\infty}^t\dfrac{\ind_{\{T_i < s\}}-H(s|x)}{(1-H(s|x))^2}dH^u(s|x)+\dfrac{\ind_{\{T_i \leq t,\delta_i=1\}}-H^u(t|x)}{1-H(t|x)}\right.\\
+&&\left.-\int_{-\infty}^t\dfrac{\ind_{\{T_i \leq s,\delta_i=1\}}-H^u(s|x)}{(1-H(s|x))^2}dH(s|x)+\dfrac{(P_i-\delta_i)\ind_{\{T_i\leq t\}}}{1-H(T_i|x)}\right\}
+\end{eqnarray*}
+and
+\begin{eqnarray*}
+\sup_{\tau_0\leq t\leq \tau_1}|r_n(t|x)|=\mathcal{O}_\mathbb{P}((nh^p)^{-3/4} |\log h|^{3/4}).
+\end{eqnarray*}
+\end{theorem}
+
+This allows us to obtain the main result of this subsection, which is the weak convergence of the estimator $\widehat{F}_n$ as a process in $\ell^\infty[\tau_0,\tau_1]$ for any $\tau_1 < \tau_H(x)$ and for fixed $x$.  Here, for any set $S$, the space $\ell^\infty(S)$ is the space of bounded functions defined on $S$ endowed with the uniform norm. 
+
+\begin{theorem}
+\label{theorem_nesti}
+Assume $(\mathcal{A})$, $(\mathcal{H})$ and $(\mathcal{K})$, and assume that $f(x)>0$, $nh^p |\log h|^{-3} \to \infty$ and $nh^{2\eta+p-q} |\log h|^{-1} =\mathcal{O}(1)$ for some $q>0$. Then, for any $\tau_0 < \tau_1<\tau_H(x)$, the process
+\begin{eqnarray}
+\label{process}
+\left\{(nh^p)^{1/2}(\widehat{F}_n(t|x)-F(t|x)),\quad t\in [\tau_0,\tau_1]\right\},
+\end{eqnarray}
+converges weakly in $\ell^\infty[\tau_0,\tau_1]$ to a continuous mean-zero Gaussian process $Z(\cdot|x)$ with covariance function
+\begin{eqnarray*}
+\widehat{\Gamma}(t,s|x)=\dfrac{\Vert K\Vert_2^2}{f(x)}(1-F(t|x))(1-F(s|x))\int_{-\infty}^{t\wedge s}\dfrac{\mathbb{E}[P^2|T=y, X=x] }{(1-H(y|x))^2}dH(y|x).
+\end{eqnarray*}
+\end{theorem}
+
+\newpage
+\section{Missing at random application}
+\label{section_MAR}
+
+\begin{eqnarray*}
+\widehat{P}_n(t|x)=\sum_{i=1}^n\widebar{W}_{b}((t-T_i,x-X_i))\sigma_i
+\end{eqnarray*}
+where for any $i=1,\ldots,n$, $\sigma_i=P_i\xi_i$ and
+\begin{eqnarray*}
+\widebar{W}_{b}(x-X_i)=\dfrac{L_{b}(t-T_i,x-X_i)}{\sum_{j=1}^nL_{b}(t-T_j,x-X_j)\xi_i}
+\end{eqnarray*}
+and $L_{b}(\cdot)=L(\cdot/{b})/b^{p+1}$ with $L:\mathbb{R}^{p+1}\to\mathbb{R}$ a kernel function and $b=b_n$ a non-random positive sequence such that $b_n\rightarrow 0$ and $h=o(b)$ as $n\rightarrow \infty$.\\
+
+{\bf Assumption $({\cal L})$.} {\it $L$ and satisfies Assumption $({\cal K})$ in $\mathbb{R}^{p+1}$, there exists $\delta, m>0$ such that $B_0(\delta) \subset S_L$ and $L(u)\geq m$ for all $u\in B_0(\delta)$, and $L$ belongs to the linear span (the set of finite linear combinations) of functions
+$k\ge0$ satisfying the following property: the subgraph of $k$,
+$\{(s,u):k(s)\ge u\}$, can be represented as a finite number of
+Boolean operations among sets of the form
+$\{(s,u):q(s,u)\ge \varphi(u)\}$, where $q$ is a polynomial on $\mathbb R^{p+1}\times \mathbb R$ and $\varphi$ is an arbitrary real function.\\
+}
+
+\begin{lemma}
+\label{lem_margins}
+Assume that there exists $d>0$ such that $f(x)\geq d, \forall x\in S_X \subset \mathbb R^p,$  $f$ is bounded, and $({\cal K}_2)$ and $({\cal F})$ hold. Consider a sequence $c$ tending to 0 as $n\to \infty$ such that for some $q>1$ 
+\begin{eqnarray*}
+\dfrac{\vert\log c\vert^q}{nc^p}\longrightarrow 0.
+\end{eqnarray*}
+Also assume that there exists an $\varepsilon>0$ such that for $n$ sufficiently large
+\begin{eqnarray}
+\inf_{x\in S_X} \lambda\left(\left\{u \in B_0(1): x-cu\in S_X\right\}\right)>\varepsilon,
+\label{newcondition}
+\end{eqnarray}
+where $\lambda$ denotes the Lebesgue measure. Then, for any  $0<\eta<\min(\eta_{F_1}, \eta_{F_2})$, we have  
+\begin{eqnarray*}
+\sup_{(y,x)\in\mathbb{R}\times S_X}\left\vert F_{n,j}(y|x)-F_j(y|x)\right\vert =o_\mathbb{P}\left(\max\left(\sqrt{\dfrac{\vert\log c\vert^q}{nc^p}}, c^\eta\right)\right), \mbox{ for $j=1, 2$}.
+\end{eqnarray*}
+\end{lemma}
+
+\section{Appendix}
+\subsection{Proofs of Section \ref{section_cdf}}
+
+\textbf{Proofs of Lemma \ref{lambda}}. The proof here is similar to that of Lemma 3.6 in \cite{Dikta1998}. 
+According to the mean value theorem, we have for any $t\in[\tau_0,\tau_1]$
+\begin{eqnarray}
+\label{proof_lambda}
+\nonumber\left|1-\widehat{F}_n(t|x)-\exp(-\widehat{\Lambda}_n(t|x))\right|&\leq& \left|r(t)\left[-\log(1-\widehat{F}_n(t|x))-\widehat{\Lambda}_n(t|x)\right]\right|\\
+&\leq&\left|-\log(1-\widehat{F}_n(t|x))-\widehat{\Lambda}_n(t|x)\right|
+\end{eqnarray}
+where $r(t)$ lies between $1-\widehat{F}_n(t)$ and $\exp(-\widehat{\Lambda}_n(t))$. For any $0<y<1$, we have the inequality $0<-\log(1-y)-y<\dfrac{y^2}{1-y}$. This yields in (\ref{proof_lambda}) to
+\begin{eqnarray*}
+\left|1-\widehat{F}_n(t|x)-\exp(-\widehat{\Lambda}_n(t|x))\right|&\leq&\sum_{T_i\leq t}P_i\dfrac{W_h(x-X_i)^2}{(1-H_n(T_i^-|x))(1-H_n(T_i|x))}\\
+&\leq&\dfrac{\sum_{T_i\leq t}P_iW_h(x-X_i)^2}{(1-H_n(\tau_1|x))^2}\\
+&\leq&\Vert K\Vert_\infty\dfrac{\sum_{T_i\leq t}P_iW_h(x-X_i)}{nh^pf_n(x)(1-H_n(\tau_1|x))^2}
+\end{eqnarray*}
+and the lemma follows.\\
+
+\noindent
+\textbf{Proofs of the Theorem \ref{asrep}}. The proofs follow the same arguments than to that of Theorem 3.1 in \cite{Escobar2019}. We thus refer to the former paper for the technical specifications and only provide here the main arguments for our estimator. According to the decomposition
+\begin{eqnarray*}
+\widehat{F}_n(t|x)-F(t|x)&=&\widehat{F}_n(t|x)-1+\exp(-\widehat{\Lambda}_n(t|x))+\exp(-\Lambda_n(t|x))-\exp(\widehat{\Lambda}_n(t|x))\\
+&&1-F_n(t|x)-\exp(\Lambda_n(t|x))+F_n(t|x)-F(t|x)
+\end{eqnarray*} 
+we have combining Lemma \ref{lambda} and Theorem 3.1 in \cite{Escobar2019} that
+\begin{eqnarray*}
+&&\widehat{F}_n(t|x)-F(t|x)\\
+&&=F_n(t|x)-F(t|x)+\exp(-\Lambda_n(t|x))-\exp(-\widehat{\Lambda}_n(t|x))+\mathcal{O}_\mathbb{P}((nh^p)^{-1})\\
+&&=\sum_{i=1}^nW_h(x-X_i)g(t,T_i,\delta_i|x)+\exp(-\Lambda_n(t|x))-\exp(-\widehat{\Lambda}_n(t|x))+\mathcal{O}_\mathbb{P}((nh^p)^{-3/4} |\log h|^{3/4}).
+\end{eqnarray*}
+
+It thus only remain to derive the almost sure representation for $\Lambda_n-\widehat{\Lambda}_n$. Indeed, by Taylor's expansion, 
+\begin{eqnarray*}
+\exp(-\Lambda_n(t|x))-\exp(-\widehat{\Lambda}_n(t|x))&=&(\widehat{\Lambda}_n(t|x)-\Lambda_n(t|x))\exp(-\Lambda_n(t|x))\\
+&&+\dfrac{1}{2}(\Lambda_n(t|x)-\widehat{\Lambda}_n(t|x))^2\exp(-\Lambda_n(t|x))(1+o_\mathbb{P}(1)).
+\end{eqnarray*}
+
+However, we have by definition that
+\begin{eqnarray*}
+\widehat{\Lambda}_n(t|x)-\Lambda_n(t|x)&=&\int_{-\infty}^t\dfrac{d(\widehat{H}_n^u-H^u_n)(s|x)}{1-H_n(s^-|x)}\\
+&=&\sum_{T_i\leq t}\dfrac{(P_i-\delta_i)\ind_{\{T_i\leq t\}}}{1-H(T_i|x)}+\int_{-\infty}^t\dfrac{1}{1-H(s|x)}-\dfrac{1}{1-H_n(s|x)}d(\widehat{H}_n^u-H^u_n)(s|x)\\
+&&+\int_{-\infty}^t\dfrac{1}{1-H_n(s^-|x)}-\dfrac{1}{1-H_n(s|x)}d(\widehat{H}_n^u-H^u_n)(s|x)\\
+&=:&\sum_{T_i\leq t}\dfrac{(P_i-\delta_i)\ind_{\{T_i\leq t\}}}{1-H(T_i|x)}+R_{n,1}(t)+R_{n,2}(t).
+\end{eqnarray*}
+
+Clearly, for any $t\in\mathbb{R}$ the estimators $H_n(t)$ and $H_n(t^-)$ might only differs of one jump of size $(nh^p)^{-1}$, which gives us
+\begin{eqnarray*}
+\left|\dfrac{1}{1-H_n(s^-|x)}-\dfrac{1}{1-H_n(s|x)}\right|&=&\dfrac{\left|H_n(s|x)-H_n(s^-|x)\right|}{(1-H_n(s^-|x))(1-H_n(s|x))}\\
+&\leq& \dfrac{\left|H_n(s)-H_n(s^-)\right|}{(1-H_n(\tau_1|x))^2}=\mathcal{O}_\mathbb{P}((nh^p)^{-1})
+\end{eqnarray*}
+where the last term is uniform in $s\in\mathbb{R}$, yielding that $\sup_{t\in[\tau_0,\tau_1]}|R_{n,1}(t)|=\mathcal{O}_\mathbb{P}((nh^p)^{-1})$ for $n$ large enough, since we have almost surely $H_n(\tau_1|x)\to H(\tau_1|x)<1$ as $n\to+\infty$.\\ 
+
+Next, we have
+\begin{eqnarray*}
+R_{n,2}(t)&=&\int_{-\infty}^t\dfrac{1}{1-H(s|x)}-\dfrac{1}{1-H_n(s|x)}d(\widehat{H}_n^u-H^u)(s|x)\\
+&&+\int_{-\infty}^t\dfrac{1}{1-H(s|x)}-\dfrac{1}{1-H_n(s|x)}d(H^u-H^u_n)(s|x)\\
+&=:&R_{n,3}(t)+R_{n,4}(t).
+\end{eqnarray*}
+
+In order to uniformly bound the remaining terms $R_{n,3}(t)$ and $R_{n,4}(t)$, we again refer to the proof of Theorem 3.1 in \cite{Escobar2019}. Indeed $H_n$, $H_n^u$ and $\widehat{H}_n^u$ share the same asymptotic behavior as stated in Lemma 3.1 from \cite{Escobar2019}, that is 
+\begin{eqnarray*}
+\label{rate1}
+\sup_{t\in\mathbb{R}}|H_n(t|x)-H(t|x)|&=&\mathcal{O}_\mathbb{P}\left((nh^p)^{-1/2}|\log h|^{1/2}\right),\nonumber\\
+\sup_{t\in\mathbb{R}}|H^u_n(t|x)-H^u(t|x)|&=&\mathcal{O}_\mathbb{P}\left((nh^p)^{-1/2}|\log h|^{1/2}\right),\\
+\sup_{t\in\mathbb{R}}|\widehat{H}^u_n(t|x)-H^u(t|x)|&=&\mathcal{O}_\mathbb{P}\left((nh^p)^{-1/2}|\log h|^{1/2}\right)\nonumber
+\end{eqnarray*}
+
+where the arguments for $\widehat{H}^u_n$ are the same as $H_n$ and $H^u_n$. Since $H$ and $H^u$ are continuous, it yields from the proof of Lemma 2.1 in \cite{VanKeilegom1997} that
+\begin{eqnarray*}
+\sup_{t\in[\tau_0,\tau_1]}|R_{n,3}(t)|=\mathcal{O}_\mathbb{P}((nh^p)^{-3/4} |\log h|^{3/4})\quad\text{and}\quad\sup_{t\in[\tau_0,\tau_1]}|R_{n,4}(t)|=\mathcal{O}_\mathbb{P}((nh^p)^{-3/4} |\log h|^{3/4})
+\end{eqnarray*}
+which show our result.
+\hfill$\Box$\\
+
+\noindent
+\textbf{Proofs of the Theorem \ref{theorem_nesti}}. Here the proof follows the same that of Theorem 3.2 in \cite{Escobar2019}. We thus mostly refer to this proof by adapting each milestones to our estimator. We also keep the same notations for convenience.\\ 
+
+Overall, the approach relies on the Theorem 19.28 in \cite{Vaart1998}. Hence, we introduce some notations borrowed from the theory of weak convergence of empirical processes. Firstly, for any class $\mathcal{F}$ of bounded and measurable functions over a metric space $(\mathcal{T},d)$ and any probability measure $Q$ and $\epsilon>0$, define the covering number $N(\mathcal{F},L_2(Q),\epsilon)$ as the minimal number of $L_2(Q)-$balls of radius $\epsilon$ needed to cover $\mathcal{F}$. We say that the class $\mathcal{F}$ is \textit{VC} if one can find $A>0$ and $\nu>0$ such that for any probability measure $Q$ and $\epsilon>0$,
+\begin{eqnarray*}
+N(\mathcal{F},L_2(Q),\epsilon\Vert F\Vert_{Q,2})\leq\left(\dfrac{A}{\epsilon}\right)^\nu,
+\end{eqnarray*} 
+where $0<\Vert F\Vert^2_{Q,2}=\int F^2 dQ<\infty$ and $F$ is an envelope function of the class ${\cal F}$. Additionally, we also define the uniform entropy integral as
+\begin{eqnarray*}
+J(\delta,\mathcal{F},L_2) =\int_0^\delta\sqrt{\log\sup_{\mathcal{Q}}N(\mathcal{F},L_2(Q),t\Vert F\Vert_{Q,2})}\, dt,
+\end{eqnarray*} 
+where $\mathcal{Q}$ is the set of all probability measures $Q$. Next, let $P$ denote the law of the vector $(T,\delta,X)$ and define the expectation under $P$ as $Pf=\int fdP$ for any real-valued measurable function $f$. By integration by parts we can rewrite the function $\widehat{g}$ as
+\begin{eqnarray}
+\label{proof_g}
+\widehat{g}(t,T,\delta,P|x)&=&(1-F(t|x))\left\{\dfrac{\ind_{\{\delta=1,T\leq t\}}}{1-H(T|x)}-\int_{-\infty}^{T\nonumber\wedge t}\dfrac{dH^u(s|x)}{(1-H(s|x))^2}+\dfrac{(P-\delta)\ind_{\{T\leq t\}}}{1-H(T|x)}\right\}\\
+&=&g(t,T,\delta|x)+(1-F(t|x))\dfrac{(P-\delta)\ind_{\{T\leq t\}}}{1-H(T|x)}
+\end{eqnarray}
+and define the sequence of classes $\widehat{\mathcal{F}}_n$ with functions taking values in $E=\mathbb{R}\times\{0,1\}\times[0,1]\times\mathcal{S}_X$ as
+\begin{eqnarray*}
+\widehat{\mathcal{F}}_n &=& \left\{(u,v,v',w)\rightarrow \widehat{f}_{n,t}(u,v,v',w), \, t\in[\tau_0,\tau_1]\right\} \\
+&=& \left\{(u,v,v',w)\rightarrow\sqrt{h^p}K_h(x-w)\widehat{g}(t,u,v,v'|x),\, t\in[\tau_0,\tau_1]\right\},
+\end{eqnarray*}
+embedded with the envelope function  $E_n(u,v,v',w)=\sqrt{h^p}K_h(x-w)M$, $M>0$ being an appropriate constant since $\widehat{g}(.|x)$ is uniformly bounded.\\
+
+The weak convergence of the stochastic process (\ref{process}) follows from the four conditions (6.6), (6.7), (6.8) and (6.9) as described in \cite{Escobar2019} page 26. However, (6.6) and (6.9) has already been proven and it only remains to show (6.7) and (6.8), that is
+\begin{eqnarray}
+\label{ST1}
+\sup_{|t-s|\leq \delta_n} P(\widehat{f}_{n,t}-\widehat{f}_{n,s})^2 &\longrightarrow& 0 \mbox{ for every $\delta_n \searrow 0$,}\\
+\label{ST2}
+J(\delta_n, \widehat{{\cal F}}_n, L_2)&\longrightarrow& 0 \mbox{ for every $\delta_n \searrow 0$.}
+\end{eqnarray}
+
+In order to prove (\ref{ST1}), without lost of generality, we have for any $s<t\in\mathbb{R}$
+\begin{eqnarray*}
+(\widehat{f}_{n,t}-\widehat{f}_{n,s})(u,v,v',w)=(f_{n,t}-f_{n,s})(u,v,w)+\ind_{\{s<u\leq t\}}\dfrac{v'-v}{1-H(u|x)}
+\end{eqnarray*}
+that give us by convexity
+\begin{eqnarray*}
+((\widehat{f}_{n,t}-\widehat{f}_{n,s})(u,v,v',w))^2&\leq& 2((f_{n,t}-f_{n,s})(u,v,v',w))^2+8\dfrac{\ind_{\{s<u\leq t\}}}{(1-H(\tau_1|x))^2}.
+\end{eqnarray*}
+
+Hence, we are able to obtain the following inequality
+\begin{eqnarray*}
+P(\widehat{f}_{n,t}-\widehat{f}_{n,s})^2\leq 2P(f_{n,t}-f_{n,s})^2+8\dfrac{\mathbb{P}(s<T\leq t)}{(1-H(\tau_1|x))^2}=2P(f_{n,t}-f_{n,s})^2+8\dfrac{H(t)-H(s)}{(1-H(\tau_1|x))^2}.
+\end{eqnarray*}
+Since we already have that $\sup_{|t-s|\leq \delta_n} P(f_{n,t}-f_{n,s})^2=o(1)$ in \cite{Escobar2019}, (\ref{ST1}) follows by the uniform continuity of the distribution function $H$. To prove (\ref{ST2}), we use the results for the class of function $\mathcal{F}_n$ introduced in \cite{Escobar2019} and apply them to $\widehat{\mathcal{F}}_n$.  Between $\widehat{\mathcal{F}}_n$ and $\mathcal{F}_n$, we have the relation
+\begin{eqnarray*}
+\widehat{\mathcal{F}}_n&=&\left\{(u,v,v',w)\rightarrow\sqrt{h^p}K_h(x-w)\left[g(t,u,v|x)+(1-F(t|x))\dfrac{(v-v')\ind_{\{u\leq t\}}}{1-H(u|x)}\right],\, t\in[\tau_0,\tau_1]\right\}\\
+&\subset&\mathcal{F}_n+\left\{(u,v,v',w)\rightarrow\sqrt{h^p}K_h(x-w)(1-F(t|x))\dfrac{(v-v')\ind_{\{u\leq t\}}}{1-H(u|x)},\, t\in[\tau_0,\tau_1]\right\}\\
+&\subset&\mathcal{F}_n+\left\{(u,v,v',w)\rightarrow\sqrt{h^p}K_h(x-w)(1-F(t|x))\dfrac{v\ind_{\{u\leq t\}}}{1-H(u|x)},\, t\in[\tau_0,\tau_1]\right\}\\
+&&+\left\{(u,v,v',w)\rightarrow-\sqrt{h^p}K_h(x-w)(1-F(t|x))\dfrac{v'\ind_{\{u\leq t\}}}{1-H(u|x)},\, t\in[\tau_0,\tau_1]\right\}\\
+&=:&\mathcal{F}_n+\mathcal{G}_{n,1}+\mathcal{G}_{n,2}.
+\end{eqnarray*}
+According to Lemma 2.6.18 {\it(i)}, {\it(vi)} and {\it(viii)} in \cite{Vaart1996}, we obtain that $\mathcal{G}_{n,1}$ and $\mathcal{G}_{n,2}$ are \textit{VC} with the envelope function $E'_n(u,v,v',w)=\sqrt{h^p}K_h(x-w)(1-H(\tau_1|x))^{-1}$. Finally, since the covering number for $\mathcal{F}_n$ is already provided in \cite{Escobar2019} and that $\widehat{\mathcal{F}}_n$ is included in the class of functions $\mathcal{F}_n+\mathcal{G}_{n,1}+\mathcal{G}_{n,2}$ with envelope function $E_n+2E'_n$, we have using Lemma 16 in \cite{Nolan1987} for any $t>0$ 
+\begin{eqnarray*}
+\sup_\mathcal{Q} N(\widehat{\mathcal{F}}_n,L_2(Q),t\Vert E_n+2E'_n\Vert_{Q,2})&\leq&\sup_\mathcal{Q} N(\mathcal{F}_n+\mathcal{G}_{n,1}+\mathcal{G}_{n,2},L_2(Q),t\Vert E_n+2E'_n\Vert_{Q,2})\\
+&\leq& L\left(\dfrac{1}{t}\right)^V
+\end{eqnarray*}
+for some $L$ and $V$. Thus, (\ref{ST2}) is established since for any sequence $\delta_n\searrow 0$ and $n$ large enough since we have
+\begin{eqnarray*}
+J(\delta_n,\widehat{\mathcal{F}}_n,L_2)
+&\leq&\int_0^{\delta_n}\sqrt{\log(2^VL)-V\log(t)}dt=o(1).
+\end{eqnarray*}
+and the weak convergence for our process is established. In order to derive the covariance structure of the limiting process, it is sufficient to see that in ($\ref{proof_g}$), $\widehat{g}$ might be written as
+\begin{eqnarray*}
+\widehat{g}(t,T,\delta,P|x)=(1-F(t|x))\left\{\dfrac{P\ind_{\{T\leq t\}}}{1-H(T|x)}-\int_{-\infty}^{T\nonumber\wedge t}\dfrac{dH^u(y|x)}{(1-H(y|x))^2}\right\}.
+\end{eqnarray*}
+
+with the following equalities 
+\begin{eqnarray*}
+\mathbb{E}\left[\left.\dfrac{P\ind_{\{T\leq t\}}}{1-H(T|x)}\int_{-\infty}^{T\wedge s}\dfrac{dH^u(y|x)}{(1-H(y|x))^2}\right| X=x\right]&=&\mathbb{E}\left[\left.\dfrac{\ind_{\{\delta=1, T\leq t\}}}{1-H(T|x)}\int_{-\infty}^{T\wedge s}\dfrac{dH^u(y|x)}{(1-H(y|x))^2}\right| X=x\right]\\
+&=&\int_{-\infty}^t\dfrac{1}{1-H(z|x)}\int_{-\infty}^{z\wedge s}\dfrac{dH^u(y|x)}{(1-H(y|x))^2}dH^u(z|x),
+\end{eqnarray*}
+\begin{eqnarray*}
+\hspace{-3.8cm}\mathbb{E}\left[\left.\dfrac{P^2\ind_{\{T\leq t,T\leq s\}}}{(1-H(T|x))^2}\right| X=x\right]=\int_{-\infty}^{t\wedge s}\dfrac{\mathbb{E}[P^2|T=y,X=x]}{(1-H(y|x))^2} dH(y|x)\\
+\end{eqnarray*}
+
+and
+
+\begin{eqnarray*}
+&&\hspace{-.9cm}\mathbb{E}\left[\left.\int_{-\infty}^{T\wedge t}\dfrac{dH^u(y|x)}{(1-H(y|x))^2}\int_{-\infty}^{T\wedge s}\dfrac{dH^u(y|x)}{(1-H(y|x))^2}\right| X=x\right]\\
+&=&\int_{-\infty}^{+\infty}\int_{-\infty}^{z\wedge t}\dfrac{dH^u(y|x)}{(1-H(y|x))^2}\int_{-\infty}^{z\wedge s}\dfrac{dH^u(y|x)}{(1-H(y|x))^2}dH(z|x)\\
+&=&\int_{-\infty}^t\dfrac{1}{1-H(z|x)}\int_{-\infty}^{z\wedge s}\dfrac{dH^u(y|x)}{(1-H(y|x))^2}dH^u(z|x)+\int_{-\infty}^s\dfrac{1}{1-H(z|x)}\int_{-\infty}^{z\wedge t}\dfrac{dH^u(y|x)}{(1-H(y|x))^2}dH^u(z|x).\\
+\end{eqnarray*}
+
+Finally, we establish the continuity of the process thanks to a sufficient condition due to \cite{Fernique1964}. Indeed, let $(s,t)\in\mathbb{R}^2$ and denote 
+\begin{eqnarray*}
+\widebar{F}(\cdot|x)=1-F(\cdot|x)\quad\text{and}\quad m(y|x)=\dfrac{\mathbb{E}[P^2|T=y,X=x]}{(1-H(y|x))^2}.
+\end{eqnarray*}
+
+Then,
+\begin{eqnarray*}
+&&\mathbb{E}[(Z(s|x)-Z(t|x))^2]\dfrac{f(x)}{\Vert K\Vert ^2_2}\\
+&&=\widebar{F}(s|x)^2\int_{-\infty}^{s}m(y|x)dH(y|x) -2\widebar{F}(s|x)\widebar{F}(t|x)\int_{-\infty}^{s\wedge t}m(y|x)dH(y|x)+\widebar{F}(t|x)^2\int_{-\infty}^{t}m(y|x)dH(y|x)\\
+&&=\widebar{F}(s|x)\left[\widebar{F}(s|x)\int_{s\wedge t}^{s}m(y|x)dH(y|x)+(F(t|x)-F(s|x))\int_{-\infty}^{s\wedge t}m(y|x)dH(y|x)\right]\\
+&& \quad +\widebar{F}(t|x)\left[\widebar{F}(t|x)\int_{s\wedge t}^{t}m(y|x)dH(y|x)+(F(s|x)-F(t|x))\int_{-\infty}^{s\wedge t}m(y|x)dH(y|x)\right]\\
+&&=\widebar{F}(s\vee t|x)^2\int_{s\wedge t}^{s\vee t}m(y|x)dH(y|x)+\int_{-\infty}^{s\wedge t}m(y|x)dH(y|x)(F(s|x)-F(t|x))^2\\
+&&\leq \dfrac{c|s-t|^{\eta'}}{(1-H(\tau_1|x))^2}.
+\end{eqnarray*}
+This yields that $\sqrt{\mathbb{E}[(Z(s|x)-Z(t|x))^2]}\leq\xi(t-s)$, with 
+$$ \xi(t-s)=\sqrt{\dfrac{c}{f(x)}}\dfrac{\Vert K\Vert_2|s-t|^{\eta'/2}}{1-H(\tau_1|x)} $$ 
+being monotone and
+\begin{eqnarray*}
+\int_0^1\dfrac{\xi(u)}{u|\log(u)|^{1/2}}du<+\infty. \\[-1.6cm]
+\end{eqnarray*}
+\hfill$\Box$\\
+
+\subsection{Proofs of Section \ref{section_MAR}}
+\bibliographystyle{plain} 
+\bibliography{bibli.bib}  
+  
+\end{document}
