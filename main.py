@@ -1,5 +1,5 @@
 from fn import *
-import torch
+# import torch
 from os import system
 import matplotlib.pyplot as plt
 import math
@@ -23,13 +23,13 @@ x_list = [.3,.5,.7]
 
 
 
-# a0 = 3
-# a1 = .5
-# a2 = .7
-# b0 = 1
-# b1 = .5
-# b2 = .4
-#surv, censor, obs, delta,  xi, x = gen_data_exponential(nb_iter,sample_size, a0, a1, a2, b0, b1, b2)
+a0 = 3
+a1 = .5
+a2 = .7
+b0 = 1
+b1 = .5
+b2 = .4
+#surv, censor, obs, delta,  xi, x, proba = gen_data_exponential(nb_iter,sample_size, a0, a1, a2, b0, b1, b2)
 
 surv, censor, obs, delta,  xi, x = gen_data_weibull(nb_iter,sample_size)
 
@@ -39,7 +39,7 @@ y = delta
 dict_p = {}
 
 #list_model = ["Standard_beran","NN","DecisionTree","KNN","LogisticRegression"]
-list_model = ["Standard_beran","NN","DecisionTree","KNN","LogisticRegression"]
+list_model = ["Standard_beran","DecisionTree","LogisticRegression"]
 
 for type_model in list_model:
 
@@ -50,6 +50,10 @@ for type_model in list_model:
 	if (type_model == "Standard_beran"):
 
 		p = delta
+
+	# elif (type_model == "True_proba"):
+    #
+	# 	p = proba
 
 	elif(type_model == "NN"):
 
@@ -115,11 +119,17 @@ for type_model in list_model:
 
 	for k in pbar:
 		# Bandwidth selection
-		h = .2
+		h = .1
 		c_x = 0
 		for x_eval in x_list:
 			# Estimators computation
-			beran[k, :, c_x] = gene_Beran(t, surv[k, :], p[k, :], x[k, :], x_eval, h)
+
+			beran[k, :, c_x] = gene_Beran(t, obs[k, :], p[k, :], x[k, :], x_eval, h)
+
+			# beran[k, :, c_x] = Beran_estimator(p[k, :],t,obs[k, :],x[k, :],x_eval,h,False)
+
+
+
 			c_x += 1
 
 	dict_beran[type_model] = beran

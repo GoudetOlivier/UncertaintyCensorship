@@ -97,11 +97,11 @@ def Beran_estimator(value,t,list_y, x=None, x_eval=None,mode_test=False):
 
     for i in range(1,n+1):
 
-        if(i>1):
-            sumW += W[i-1]
+
+
 
         v = (1 - W[i-1] / (1-sumW))**value[i-1]
-
+        sumW += W[i - 1]
         if(math.isnan(v)):
             v = 0
 
