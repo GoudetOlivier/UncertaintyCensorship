@@ -16,10 +16,10 @@ from scipy.stats import exponweib
 ##########
 #  Main  #
 ##########
-sample_size = 1000
+sample_size = 2000
 nb_iter = 100
 
-x_list = [.3,.5,.7]
+x_list = [0.3,0.5,0.7]
 
 
 
@@ -30,10 +30,25 @@ b0 = 1
 b1 = .5
 b2 = .4
 #surv, censor, obs, delta,  xi, x, proba = gen_data_exponential(nb_iter,sample_size, a0, a1, a2, b0, b1, b2)
+#
 
-surv, censor, obs, delta,  xi, x = gen_data_weibull(nb_iter,sample_size)
+#surv, censor, obs, delta,  xi, x = gen_data_weibull(nb_iter,sample_size)
 
-X = np.stack((obs, x),2)
+
+surv, censor, obs, delta,  xi, x = gen_data_multivariate_model(nb_iter,sample_size)
+
+print(obs.shape)
+
+print(x.shape)
+
+if(x.ndim==2):
+	X = np.stack((obs, x),2)
+else:
+	X = np.concatenate((np.expand_dims(obs, axis=2), x), axis=2)
+
+print("delta")
+print(delta[0])
+
 y = delta
 
 dict_p = {}
@@ -58,7 +73,7 @@ for type_model in list_model:
 	elif(type_model == "NN"):
 
 		nb_epoch = 1000
-		layers_size = [2, 200, 1]
+		layers_size = [X.shape[2], 200, 1]
 		isParallel_run = True
 
 		# device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -90,7 +105,9 @@ for type_model in list_model:
 
 			clf.fit(X[k,], y[k,])
 
+
 			p[k, :] = clf.predict_proba(X[k,])[:,1]
+
 
 	dict_p[type_model] = p
 
@@ -119,15 +136,14 @@ for type_model in list_model:
 
 	for k in pbar:
 		# Bandwidth selection
-		h = .1
+		h = 0.5
 		c_x = 0
 		for x_eval in x_list:
 			# Estimators computation
 
 			beran[k, :, c_x] = gene_Beran(t, obs[k, :], p[k, :], x[k, :], x_eval, h)
 
-			# beran[k, :, c_x] = Beran_estimator(p[k, :],t,obs[k, :],x[k, :],x_eval,h,False)
-
+			#beran[k, :, c_x] = beran_estimator(p[k, :],t,obs[k, :],x[k, :],x_eval,h,False)
 
 
 			c_x += 1
@@ -146,7 +162,12 @@ plt.figure()
 for i in range(len(x_list)):
 
 	#true_cdf = expon(scale=1/(a0+a1*x_list[i]+a2*x_list[i]**2)).cdf(t)
-	true_cdf = exponweib.cdf(t, 1, 0.5*(x_list[i] + 4))
+	#true_cdf = exponweib.cdf(t, 1, 0.5*(x_list[i] + 4))
+
+	#true_cdf = expon(scale=(0.1*x_list[i] + 0.2 *x_list[i] +  0.3 *x_list[i] +  0.4 *x_list[i] + 0.5 *x_list[i])).cdf(t)
+
+	true_cdf = expon(
+		scale=(5 + 1/5*(np.sin(x_list[i])+ np.cos(x_list[i]) + x_list[i]**2 + np.exp(x_list[i]) + x_list[i]))).cdf(t)
 
 	plt.subplot(len(x_list), 2, 2 * i + 1 )
 	plt.plot(t, true_cdf, label='cdf')

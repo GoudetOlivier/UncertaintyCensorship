@@ -100,15 +100,22 @@ def gene_Beran(t, obs, p, x=None, x_eval=None, h=1, mode_km=False):
     #Compute the list of weights
     W = np.zeros(n)
     W2 = np.zeros(n)
-   
+
+
+
+    if(x.ndim==2):
+        distance = np.linalg.norm(x_eval - x, axis=1)
+    else:
+        distance = x - x_eval
+
+    # print(distance)
+
     if(mode_km):
         W = 1/(1+np.arange(n))
     else:
-        W = quad_kern((x_eval-x)/h)
+        W = quad_kern(distance/h)
     
     W = W/np.sum(W)
-
-
 
     #Compute the list of the cumulative weights for the product
     cum_W = 1-np.append([0],np.cumsum(W[np.arange(0,n-1)]))
@@ -121,6 +128,7 @@ def gene_Beran(t, obs, p, x=None, x_eval=None, h=1, mode_km=False):
 
     # Compute the conditional survival function
     for t_eval in t:
+
         s = 1-np.prod(W2[obs<=t_eval])
         csf.append(s)
 
@@ -128,21 +136,67 @@ def gene_Beran(t, obs, p, x=None, x_eval=None, h=1, mode_km=False):
 
 
 
+##################################################################################################################
+# Data generator according to multivariate distribution. See https://arxiv.org/pdf/1902.03327.pdf. section 4.2.4 #
+##################################################################################################################
+def gen_data_multivariate_model(nb_iter,size):
+
+    #np.random.seed(0)
+    p = 0.5
+
+    x = np.random.uniform(low=0,high=1, size=( nb_iter, size, 5))
+
+    epsilon = 0.3* np.random.randn(nb_iter, size)
+
+    surv = np.random.exponential(5 + 1/5*(np.sin(x[:,:,0])+ np.cos(x[:,:,1]) + x[:,:,2]**2 + np.exp(x[:,:,3]) + x[:,:,4]))
+
+    #surv = 5 + 1/5*(np.sin(x[:,:,0])+ np.cos(x[:,:,1]) + x[:,:,2]**2 + np.exp(x[:,:,3]) + x[:,:,4]) + epsilon
+
+    censor = np.random.exponential(1/0.05,(nb_iter,size))
+
+    obs = np.minimum(surv,censor)
+
+    delta = np.where(surv<=censor,1,0)
 
 
-def Beran_estimator(p,t,obs, x=None, x_eval=None, h=0.1, mode_test=False):
+
+    u = np.random.uniform(low=0.0, high=1.0, size=(nb_iter,size))
+
+    xi = np.where(u < p, 1, 0)
+
+    index = np.argsort(obs, axis=1)
+
+    for i in range(nb_iter):
+        surv[i,:] = surv[i,index[i,:]]
+        obs[i, :] = obs[i, index[i, :]]
+        censor[i, :] = censor[i, index[i, :]]
+        delta[i, :] = delta[i, index[i, :]]
+        xi[i, :] = xi[i, index[i, :]]
+        x[i, :] = x[i, index[i, :]]
+
+
+    return surv, censor, obs, delta,  xi, x
+
+
+
+
+
+def beran_estimator(p,t,obs, x=None, x_eval=None, h=0.1, mode_test=False):
 
 
     n = p.shape[0]
 
-    W = np.zeros((n))
+
+    if (x.ndim == 2):
+        distance = np.linalg.norm(x_eval-x, axis=1)
+    else:
+        distance = x - x_eval
 
 
-    for i in range(n):
-        if(mode_test):
-            W[i] = 1/n
-        else:
-            W[i] = quad_kern((x_eval - x[i])/h)
+    if (mode_test):
+        W = 1 / (1 + np.arange(n))
+    else:
+        W = quad_kern(distance / h)
 
     W = W / np.sum(W)
 
@@ -168,6 +222,8 @@ def Beran_estimator(p,t,obs, x=None, x_eval=None, h=0.1, mode_test=False):
         list_cumV.append(1- cumV)
 
     cpt = 0
+
+
 
     for t_eval in t:
 
