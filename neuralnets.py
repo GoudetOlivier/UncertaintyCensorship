@@ -69,12 +69,22 @@ class Net3D(nn.Module):
             if hasattr(layer, 'reset_parameters'):
                 layer.reset_parameters()
 
-
-
+#
+# class L1Loss(nn.Module):
+#
+#
+#     def __init__(self, size_average=None, reduce=None, reduction='mean'):
+#         super(L1Loss, self).__init__(size_average, reduce, reduction)
+#
+#     def forward(self, input, target):
+#
+#         return th.max(1-input,0)
+#         return F.l1_loss(input, target)
+#
 
 class NNetWrapper():
 
-    def __init__(self, nb_iter, layers_size, device, isParallel_run):
+    def __init__(self, nb_iter, layers_size, device, isParallel_run, type_loss):
 
         self.device = device
         self.isParallel_run = isParallel_run
@@ -89,9 +99,15 @@ class NNetWrapper():
         #self.optimizer = torch.optim.SGD(self.net.parameters(),lr=.001)
         self.optimizer = torch.optim.Adam(self.net.parameters())
 
-        #self.criterion = nn.L1Loss()
-        self.criterion = nn.BCELoss()
-        #self.criterion = nn.MSELoss()
+        if(type_loss == "BCEloss"):
+            self.criterion = nn.BCELoss()
+        elif(type_loss == "MSEloss"):
+            self.criterion = nn.MSELoss()
+        elif (type_loss == "L1loss"):
+            self.criterion = nn.L1Loss()
+        # elif (type_loss == "hinge_loss"):
+        #     self.criterion = nn.L1Loss()
+
 
 
         self.net.reset_parameters()

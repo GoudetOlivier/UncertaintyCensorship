@@ -108,8 +108,6 @@ def gene_Beran(t, obs, p, x=None, x_eval=None, h=1, mode_km=False):
     else:
         distance = x - x_eval
 
-    # print(distance)
-
     if(mode_km):
         W = 1/(1+np.arange(n))
     else:
@@ -148,12 +146,18 @@ def gen_data_multivariate_model(nb_iter,size):
 
     epsilon = 0.3* np.random.randn(nb_iter, size)
 
-    surv = np.random.exponential(5 + 1/5*(np.sin(x[:,:,0])+ np.cos(x[:,:,1]) + x[:,:,2]**2 + np.exp(x[:,:,3]) + x[:,:,4]))
+    #surv = np.random.exponential(5 + 1/5*(np.sin(x[:,:,0])+ np.cos(x[:,:,1]) + x[:,:,2]**2 + np.exp(x[:,:,3]) + x[:,:,4]))
 
-    #surv = 5 + 1/5*(np.sin(x[:,:,0])+ np.cos(x[:,:,1]) + x[:,:,2]**2 + np.exp(x[:,:,3]) + x[:,:,4]) + epsilon
+    surv = 5 + 1/5*(np.sin(x[:,:,0])+ np.cos(x[:,:,1]) + x[:,:,2]**2 + np.exp(x[:,:,3]) + x[:,:,4]) + epsilon
 
-    censor = np.random.exponential(1/0.05,(nb_iter,size))
+    x2 = np.random.uniform(low=0, high=1, size=(nb_iter, size, 5))
+    epsilon2 = 0.5* np.random.randn(nb_iter, size)
 
+    censor = 5.5 + 1/5*(x2[:,:,0]**3+ 0.3*np.cos(x2[:,:,1]) + x2[:,:,2]**2 + np.log(x2[:,:,3]+0.1) + x2[:,:,4]) + epsilon2
+
+    # censor = 5.5 + 1 / 5 * (
+    # x2[:, :, 0] ** 3 + 0.3 * np.cos(x2[:, :, 1]) + x2[:, :, 2] ** 2 + np.log(x2[:, :, 3] + 0.1) + x2[:, :, 4]) + epsilon
+    #
     obs = np.minimum(surv,censor)
 
     delta = np.where(surv<=censor,1,0)
