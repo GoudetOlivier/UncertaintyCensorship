@@ -149,7 +149,7 @@ def cross_val_beran(n,obs, delta, p, x,list_h):
     # print("ind_usefull_pair")
     # print(ind_usefull_pair)
 
-    best_score = 99999
+    best_score = 999999999999999999
     best_h = -1
 
     for h in list_h:
