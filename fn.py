@@ -133,6 +133,68 @@ def gene_Beran(t, obs, p, x=None, x_eval=None, h=1, mode_km=False):
     return csf
 
 
+########################################################################
+# Select bandwith of beran by crossvalidation (Geerdens et al. (2018)) #
+########################################################################
+def cross_val_beran(n,obs, delta, p, x,list_h):
+
+
+    ind_usefull_pair = np.zeros((n,n))
+
+    for i in range(n):
+        for j in range(n):
+            if((delta[i] == 1 and delta[j] == 1)or (delta[i]==1 and obs[i] <= obs[j]) or (delta[j]==1 and obs[j] <= obs[i]) or (i==j)):
+                ind_usefull_pair[i,j] = 1
+
+    # print("ind_usefull_pair")
+    # print(ind_usefull_pair)
+
+    best_score = 99999
+    best_h = -1
+
+    for h in list_h:
+
+        # print("eval score bandwith h")
+        # print(h)
+
+        score = 0
+
+        for i in range(n):
+
+            # print("obs.shape")
+            # print(obs.shape)
+
+            obs_del_i = np.delete(obs, i, 0)
+            p_del_i = np.delete(p, i, 0)
+            x_del_i = np.delete(x, i, 0)
+            #
+            # print("obs_del.shape")
+            # print(obs_del_i.shape)
+
+
+            estimated_cdf_del_i = beran_estimator(p_del_i,obs, obs_del_i,x =  x_del_i ,x_eval =  x[i],  h = h)
+
+
+            idx = np.where(obs[i] <= obs, 1, 0)
+
+            # print("estimated_cdf_del_i")
+            # print(estimated_cdf_del_i)
+            #
+            # print("idx")
+            # print(idx)
+
+            score += np.sum(ind_usefull_pair[i,:]*(idx - estimated_cdf_del_i)**2)
+
+
+        print("bandwith : " + str(h) + " score : " + str(score))
+
+        if (score < best_score):
+
+            best_h = h
+            best_score = score
+
+    return best_h
+
 
 ##################################################################################################################
 # Data generator according to multivariate distribution. See https://arxiv.org/pdf/1902.03327.pdf. section 4.2.4 #

@@ -16,7 +16,7 @@ from scipy.stats import norm
 ##########
 #  Main  #
 ##########
-sample_size = 3000
+sample_size = 2000
 nb_iter = 100
 
 x_list = [0.3,0.5,0.7]
@@ -56,9 +56,12 @@ dict_p = {}
 #list_model = ["Standard_beran","NN_BCE","NN_MSEloss","NN_L1loss","DecisionTree","KNN","LogisticRegression"]
 
 #
-list_model = ["Standard_beran","NN_BCE","NN_MSEloss","DecisionTree","KNN","LogisticRegression"]
+#list_model = ["Standard_beran","NN_BCE","NN_MSEloss","DecisionTree","KNN","LogisticRegression"]
+
+list_model = ["Standard_beran"]
 
 list_color = ["blue","red","green","orange","cyan","brown","magenta"]
+
 
 
 for type_model in list_model:
@@ -135,6 +138,9 @@ dict_beran = {}
 t = np.linspace(np.amin(surv),np.amax(surv),num=100)
 
 
+list_h = [0.1,0.2,0.5,0.8,1]
+
+
 for type_model in list_model:
 
 	print(type_model)
@@ -146,6 +152,11 @@ for type_model in list_model:
 	p = dict_p[type_model]
 
 	for k in pbar:
+
+		h_best = cross_val_beran(sample_size, obs[k, :], delta[k,:], p[k, :], x[k, :], list_h )
+
+		print("best h : " + str(h_best))
+
 		# Bandwidth selection
 		h = 0.5
 		c_x = 0
