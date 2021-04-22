@@ -177,12 +177,12 @@ class HeckMan_MNAR():
                 fX =  self.f(X_batch,T_batch).squeeze(-1)
 
 
-                if (cpt_batch == 0):
-                    print("probaDelta")
-                    print(probaDelta_batch[:10])
-
-                    print("m.cdf(fX)")
-                    print(self.m.cdf(fX)[:10])
+                # if (cpt_batch == 0):
+                #     print("probaDelta")
+                #     print(probaDelta_batch[:10])
+                #
+                #     print("m.cdf(fX)")
+                #     print(self.m.cdf(fX)[:10])
 
 
                 diff_proba = torch.abs(self.m.cdf(fX) - probaDelta_batch).mean()
@@ -212,9 +212,9 @@ class HeckMan_MNAR():
                 optimizer2.step()
 
                 if (self.rho.data > 1):
-                    self.rho.data = 1
+                    self.rho.data[0] = 0.99
                 elif(self.rho.data < -1):
-                    self.rho.data = -1
+                    self.rho.data[0] = -0.99
 
                 pbar.set_postfix(iter=i, idx_batch = cpt_batch, sum0 = sum0.item(), sum1 = sum1.item(), sum2 = sum2.item(), loss = loss.item(), rho = self.rho.item(), diff_proba = diff_proba.item())
 

@@ -174,7 +174,7 @@ def test_gen_data_exponential_Heckman_Mnar(size, a0, b0, c0,rho):
 
 
 
-def test_gen_data_exponential_Heckman_Mnar(nb_iter, size, a0, b0, c0,rho):
+def test_gen_data_exponential_Heckman_Mnar(nb_iter, size, a0, a1, a2, b0, b1, b2 , c0, c1, c2, rho):
 
     # np.random.seed(0)
 
@@ -183,8 +183,9 @@ def test_gen_data_exponential_Heckman_Mnar(nb_iter, size, a0, b0, c0,rho):
     XS = np.random.uniform(low=0.0, high=1.0, size=(nb_iter,size))
 
 
-    mu1 = a0*X
-    mu2 = b0*X
+    mu1 = 1/(a0+a1*X+a2*X**2)
+    mu2 = 1/(b0+b1*X+b2*X**2)
+
 
 
     Y = np.random.exponential(mu1,(nb_iter,size))
@@ -198,7 +199,7 @@ def test_gen_data_exponential_Heckman_Mnar(nb_iter, size, a0, b0, c0,rho):
 
     f = norm.ppf(probaDelta)
 
-    g = c0 * XS
+    g = 1/(c0+c1*XS+c2*XS**2)
 
     mean = np.array([0, 0])
 
@@ -209,6 +210,7 @@ def test_gen_data_exponential_Heckman_Mnar(nb_iter, size, a0, b0, c0,rho):
     distDelta1 = mvn(mean=mean, cov=covarianceDelta1)
 
     probaXi_cond_delta = np.where( delta == 1, distDelta1.cdf(np.stack((g,f),2))/probaDelta, distDelta0.cdf(np.stack((g,-f),2))/(1-probaDelta))
+
 
     u = np.random.uniform(low=0.0, high=1.0, size=(nb_iter,size))
 

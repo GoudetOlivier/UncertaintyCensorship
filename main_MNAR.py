@@ -28,7 +28,7 @@ from missingCensorshipModels import MAR, HeckMan_MNAR,  Linear, Neural_network_r
 ##########
 if __name__ == '__main__':
 
-    nb_iter = 100
+    nb_iter = 10
 
     sample_size = 1000
 
@@ -44,20 +44,33 @@ if __name__ == '__main__':
 
 
 
-    for type_data in ["multivariate"]:
+    for type_data in ["exponential", "multivariate"]:
 
         if (type_data == "exponential"):
 
-            a0 = 1
-            b0 = 1
-            c0 = 2
+            a0 = 3
+            a1 = .5
+            a2 = .7
+
+            b0 = 5
+            b1 = .5
+            b2 = .4
+
+            c0 = 3
+            c1 = 0.1
+            c2 = 0.2
 
             rho = 0.5
 
-            Y, C, T, delta, xi,  X, XS, probaDelta = test_gen_data_exponential_Heckman_Mnar(nb_iter,sample_size, a0,
-                                                                                                          b0, c0, rho)
-            print("np.sum(xi[0])/sample_size")
-            print(np.sum(xi[0])/sample_size)
+            Y, C, T, delta, xi,  X, XS, probaDelta = test_gen_data_exponential_Heckman_Mnar(nb_iter,sample_size, a0, a1, a2, b0, b1, b2 , c0, c1, c2, rho)
+            print("frac delta obs")
+            print(np.sum(xi[0]))
+
+            print("th.sum(delta * xi)")
+            print(np.sum(delta[0] * xi[0]))
+
+            print("th.sum((1-delta) * xi)")
+            print(np.sum((1 - delta[0]) * xi[0]))
 
         elif (type_data == "multivariate"):
 
@@ -69,13 +82,14 @@ if __name__ == '__main__':
                 print(np.sum(xi[0]) / sample_size)
 
 
-                list_Y_obs = [ Y[i,xi[i,:] == 1]  for i in range(nb_iter) ]
-                list_C_obs = [C[i, xi[i, :] == 1] for i in range(nb_iter)]
-                list_T_obs = [T[i, xi[i, :] == 1] for i in range(nb_iter)]
-                list_delta_obs = [delta[i, xi[i, :] == 1] for i in range(nb_iter)]
-                list_X_obs = [X[i, xi[i, :] == 1] for i in range(nb_iter)]
-                list_XS_obs = [XS[i, xi[i, :] == 1] for i in range(nb_iter)]
-                list_probaDelta_obs = [probaDelta[i, xi[i, :] == 1] for i in range(nb_iter)]
+
+        list_Y_obs = [ Y[i,xi[i,:] == 1]  for i in range(nb_iter) ]
+        list_C_obs = [C[i, xi[i, :] == 1] for i in range(nb_iter)]
+        list_T_obs = [T[i, xi[i, :] == 1] for i in range(nb_iter)]
+        list_delta_obs = [delta[i, xi[i, :] == 1] for i in range(nb_iter)]
+        list_X_obs = [X[i, xi[i, :] == 1] for i in range(nb_iter)]
+        list_XS_obs = [XS[i, xi[i, :] == 1] for i in range(nb_iter)]
+        list_probaDelta_obs = [probaDelta[i, xi[i, :] == 1] for i in range(nb_iter)]
 
 
         if (X[0].ndim == 2):
@@ -263,7 +277,7 @@ if __name__ == '__main__':
 
             if (type_data == "exponential"):
 
-                true_cdf[:, i] = expon(scale=1 / (a0 * x_list[i])).cdf(t)
+                true_cdf[:, i] = expon(scale=1 / (a0 + a1 * x_list[i] + a2 * x_list[i] ** 2)).cdf(t)
 
             elif (type_data == "multivariate"):
 
