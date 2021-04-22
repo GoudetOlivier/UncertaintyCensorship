@@ -96,7 +96,7 @@ class NNetWrapper():
 
         self.net.to(device)
 
-        #self.optimizer = torch.optim.SGD(self.net.parameters(),lr=.001)
+        #self.optimizer = torch.optim.SGD(self.net.parameters(),lr=0.01, momentum=0.9, weight_decay=1)
         self.optimizer = torch.optim.Adam(self.net.parameters())
 
         if(type_loss == "BCEloss"):
