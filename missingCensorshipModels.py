@@ -249,6 +249,7 @@ class MAR():
 
         self.device = device
 
+        self.m = normal.Normal(torch.tensor([0.0]), torch.tensor([1.0]))
 
     def fit(self,  X,  T, delta, probaDelta, eta, nb_epochs, batch_size):
 
@@ -277,7 +278,7 @@ class MAR():
 
         optimizer = optim.Adam(list(self.f.parameters()), lr=eta)
 
-        criterion  = torch.nn.BCEWithLogitsLoss()
+
 
         pbar = tqdm(range(nb_epochs))
 
@@ -299,14 +300,17 @@ class MAR():
                 fX =  self.f(X_batch,T_batch).squeeze(-1)
 
 
-                loss = criterion(fX,delta_batch)
+
+                diff_proba = torch.abs(self.m.cdf(fX) - probaDelta_batch).mean()
+
+                loss = -(delta_batch * torch.log(self.m.cdf(fX)) + (1-delta_batch) * torch.log(1-self.m.cdf(fX))).mean()
 
                 loss.backward()
 
 
                 optimizer.step()
 
-                pbar.set_postfix(iter=i, idx_batch = cpt_batch, loss = loss.item())
+                pbar.set_postfix(iter=i, idx_batch = cpt_batch, loss = loss.item(), diff_proba = diff_proba.item())
 
                 cpt_batch += 1
 

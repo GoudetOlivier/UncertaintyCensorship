@@ -28,7 +28,7 @@ from missingCensorshipModels import MAR, HeckMan_MNAR,  Linear, Neural_network_r
 ##########
 if __name__ == '__main__':
 
-    nb_iter = 10
+    nb_iter = 100
 
     sample_size = 1000
 
@@ -107,7 +107,9 @@ if __name__ == '__main__':
 
         # list_model = ["Standard_beran", "True_proba", ]
 
-        list_model = ["Standard_beran", "True_proba", "NN" , "NN_with_delta",  "Linear", "Linear_with_delta",  "Linear_MAR", "NN_MAR" ]
+        list_model = ["Standard_beran", "True_proba", "NN" ,   "Linear",  "Linear_MAR", "NN_MAR" ]
+
+        # list_model = [ "NN_MAR"]
 
         for type_model in list_model:
 
@@ -134,7 +136,7 @@ if __name__ == '__main__':
                     hMnar = HeckMan_MNAR(f, g, "cpu")
 
 
-                    hMnar.fit(X[k,], XS[k,], T[k,], delta[k,], xi[k,], probaDelta[k,],0.00005, 0.001 ,200,100)
+                    hMnar.fit(X[k,], XS[k,], T[k,], delta[k,], xi[k,], probaDelta[k,],0.00005, 0.001 ,500,100)
 
                     p[k, :] = hMnar.predict(X[k,], T[k,])
 
@@ -152,7 +154,7 @@ if __name__ == '__main__':
                     hMnar = HeckMan_MNAR(f, g, "cpu")
 
 
-                    hMnar.fit(X[k], XS[k], T[k], delta[k], xi[k], probaDelta[k], 0.00005, 0.001, 200,100)
+                    hMnar.fit(X[k], XS[k], T[k], delta[k], xi[k], probaDelta[k], 0.00005, 0.001, 500,100)
 
                     p[k, :] = hMnar.predict(X[k,], T[k,])
 
@@ -165,7 +167,7 @@ if __name__ == '__main__':
 
                     mnar = MAR(f,  "cpu")
 
-                    mnar.fit(list_X_obs[k],  list_T_obs[k], list_delta_obs[k], list_probaDelta_obs[k], 0.001, 1000,100)
+                    mnar.fit(list_X_obs[k],  list_T_obs[k], list_delta_obs[k], list_probaDelta_obs[k], 0.001, 500,100)
 
                     p[k, :] = mnar.predict(X[k,], T[k,])
 
@@ -178,7 +180,7 @@ if __name__ == '__main__':
 
                     mnar = MAR(f,  "cpu")
 
-                    mnar.fit(list_X_obs[k],  list_T_obs[k], list_delta_obs[k], list_probaDelta_obs[k], 0.001, 1000,100)
+                    mnar.fit(list_X_obs[k],  list_T_obs[k], list_delta_obs[k], list_probaDelta_obs[k], 0.00005, 500,100)
 
                     p[k, :] = mnar.predict(X[k,], T[k,])
 
