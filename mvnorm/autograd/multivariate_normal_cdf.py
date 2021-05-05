@@ -61,13 +61,13 @@ def _cov2cor(a,b,mat,stds):
 class BivariateNormalCDF(Function):
 
     @staticmethod
-    def forward(ctx, val, rho, maxpts,abseps,releps):
+    def forward(ctx, val, rho, maxpts,abseps,releps,device):
 
         ctx.maxpts   = maxpts
         ctx.abseps   = abseps
         ctx.releps   = releps
 
-        corr = torch.eye(2)
+        corr = torch.eye(2).to(device)
         corr[0,1] = rho
         corr[1,0] = rho
 
@@ -116,7 +116,7 @@ class BivariateNormalCDF(Function):
 
 
 
-        return grad_x, grad_rho, None, None, None
+        return grad_x, grad_rho, None, None, None, None
 
 
 

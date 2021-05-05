@@ -88,103 +88,19 @@ def gen_data_exponential_Heckman_Mnar(nb_iter,size, a0, a1, a2, b0, b1, b2,c0,c1
     return Y, C, T, delta, xi,  X, probaDelta, probaXi
 
 
-def test_gen_data_exponential_Heckman_Mnar(size, a0, b0, c0,rho):
-
-    # np.random.seed(0)
-
-    X = np.random.uniform(low=0.0, high=1.0, size=( size))
-
-    XS = np.random.uniform(low=0.0, high=1.0, size=( size))
-
-
-    mu1 = a0*X
-    mu2 = b0*X
-    print("mu1")
-    print(mu1)
-
-    print("mu2")
-    print(mu2)
-
-    Y = np.random.exponential(mu1,(size))
-    C = np.random.exponential(mu2,(size))
-
-    T = np.minimum(Y,C)
-
-    delta = np.where(Y<=C,1,0)
-
-    probaDelta = mu2/(mu1 + mu2)
-
-    print("probaDelta")
-    print(probaDelta)
-
-    f = norm.ppf(probaDelta)
-
-
-    print("f")
-    print(f)
-
-    # g = 1/(c0+c1*XS+c2*XS**2)
-    g = c0 * XS
-
-    print("g")
-    print(g)
-
-
-    mean = np.array([0, 0])
-
-    covarianceDelta0 = np.matrix([[1, -rho], [-rho, 1]])
-    covarianceDelta1 = np.matrix([[1, rho], [rho, 1]])
-
-
-    distDelta0 = mvn(mean=mean, cov=covarianceDelta0)
-    distDelta1 = mvn(mean=mean, cov=covarianceDelta1)
 
 
 
+def test_gen_data_exponential_Heckman_Mnar(nb_iter, size, a, b, c, rho):
 
-    probaXi_cond_delta = np.where( delta == 1, distDelta1.cdf(np.stack((g,f),1))/probaDelta, distDelta0.cdf(np.stack((g,-f),1))/(1-probaDelta))
-
-    print("probaXi_cond_delta")
-    print(probaXi_cond_delta)
-
-    u = np.random.uniform(low=0.0, high=1.0, size=(size))
-
-    xi = np.where(u < probaXi_cond_delta, 1, 0)
-
-    probaXi = norm.cdf(g)
-
-    print("probaXi")
-    print(probaXi)
-    index = np.argsort(T, axis=0)
-
-    Y[:] = Y[index[:]]
-    C[:] = C[index[:]]
-    T[:] = T[index[:]]
-    delta[:] = delta[index[:]]
-    xi[:] = xi[index[:]]
-    X[:] = X[index[:]]
-    XS[:] = XS[index[:]]
-    probaDelta[:] = probaDelta[index[:]]
-    probaXi[:] = probaXi[index[:]]
-    f[:] = f[index[:]]
-    g[:] = g[index[:]]
-
-
-    return Y, C, T, delta, xi,  X, XS, probaDelta, probaXi, f, g
-
-
-
-def test_gen_data_exponential_Heckman_Mnar(nb_iter, size, a0, a1, a2, b0, b1, b2 , c0, c1, c2, rho):
-
-    # np.random.seed(0)
 
     X = np.random.uniform(low=0.0, high=1.0, size=(nb_iter,size))
 
     XS = np.random.uniform(low=0.0, high=1.0, size=(nb_iter,size))
 
 
-    mu1 = 1/(a0+a1*X+a2*X**2)
-    mu2 = 1/(b0+b1*X+b2*X**2)
+    mu1 = 1/(a[0]+a[1]*X+a[2]*X**2)
+    mu2 = 1/(b[0]+b[1]*X+b[2]*X**2)
 
 
 
@@ -199,7 +115,7 @@ def test_gen_data_exponential_Heckman_Mnar(nb_iter, size, a0, a1, a2, b0, b1, b2
 
     f = norm.ppf(probaDelta)
 
-    g = 1/(c0+c1*XS+c2*XS**2)
+    g = c[0] + c[1]*XS + c[2]*T
 
     mean = np.array([0, 0])
 
@@ -232,25 +148,22 @@ def test_gen_data_exponential_Heckman_Mnar(nb_iter, size, a0, a1, a2, b0, b1, b2
 
 
 
-def test_gen_data_multivariate_model_Heckman_Mnar(nb_iter, size, rho):
+def test_gen_data_multivariate_model_Heckman_Mnar(nb_iter, size, a, b, c, sigma, rho):
 
 
 
     X = np.random.uniform(low=0,high=1, size=(nb_iter, size, 5))
     XS = np.random.uniform(low=0, high=1, size=(nb_iter, size, 5))
-    sigma_Y = 0.3
-    mu_Y = 0.5 + 1/5*(np.sin(X[:,:,0])+ np.cos(X[:,:,1]) + X[:,:,2]**2  -0.1*np.exp(X[:,:,3]) + X[:,:,4])
-    Y = mu_Y +  sigma_Y* np.random.randn(nb_iter, size)
-    lambda_C = 4 + X[:,:, 0] ** 3 + 1.5 * np.cos(X[:,:, 1]) + 3*X[:,:,  2] ** 2 + np.log(X[:,:,  3] + 5) + 5*X[:,:,  4]
+    
+    
+    mu_Y = a[0] + a[1]*X[:,:,0] + a[2]*X[:,:,1]**2 + a[3]*np.sin(X[:,:,2]) + a[4]*np.cos(X[:,:,3]) + a[5] * np.exp(X[:,:,4])
+    
+    
+    Y = mu_Y +  sigma* np.random.randn(nb_iter, size)
+    
 
 
-    # X = np.random.uniform(low=0,high=1, size=( size, 2))
-    # XS = np.random.uniform(low=0, high=1, size=(size, 2))
-    # sigma_Y = 0.3
-    # mu_Y = 2  + 0.5*X[:,0] + 2*X[:,1]**2
-    #
-    # Y = mu_Y +  sigma_Y* np.random.randn( size)
-    # lambda_C = 2 +0.7* X[:, 0] + 0.5*X[:, 1] ** 2
+    lambda_C = b[0] + b[1]*X[:,:, 0] + b[2]*X[:,:, 1] ** 2 + b[3]* X[:,:, 2] ** 3 + b[4] * np.cos(X[:,:, 3])  + np.log(X[:,:,4] + b[5]) 
 
 
     C = scipy.stats.expon(loc=1/lambda_C).rvs(size=( nb_iter, size))
@@ -263,10 +176,10 @@ def test_gen_data_multivariate_model_Heckman_Mnar(nb_iter, size, rho):
 
 
 
-    f_Y = scipy.stats.norm(loc=mu_Y, scale=sigma_Y).pdf(T)
+    f_Y = scipy.stats.norm(loc=mu_Y, scale=sigma).pdf(T)
     f_C = scipy.stats.expon(loc=1/lambda_C).pdf(T)
 
-    S_Y = 1 - scipy.stats.norm.cdf(T, loc=mu_Y, scale=sigma_Y)
+    S_Y = 1 - scipy.stats.norm.cdf(T, loc=mu_Y, scale=sigma)
     S_C = 1 - scipy.stats.expon(loc=1/lambda_C).cdf(T)
 
     probaDelta =  (f_Y * S_C)/(f_Y * S_C + f_C * S_Y)
@@ -282,9 +195,14 @@ def test_gen_data_multivariate_model_Heckman_Mnar(nb_iter, size, rho):
     print("np.max(f)")
     print(np.max(f))
 
-    g  = 0 + 1 / 5 * (np.sin(XS[:,:,  0]) + np.cos(XS[:,:, 1]) + XS[:,:,  2] ** 3 + np.exp(XS[:,:, 3]) + 0.8*XS[:,:, 4])
 
-    # g = -0.5 + XS[:, 0] + 0.8 * XS[:, 1]**2
+    
+    #g  = -0.8 + 1 / 5 * (np.sin(XS[:,:,  0]) + np.cos(XS[:,:, 1]) + XS[:,:,  2] ** 2 + np.exp(XS[:,:, 3]) + 0.8*XS[:,:, 4]) + T
+
+    # c = [-0.8,0.16,0.2,0.2,0.2,0.2,1]
+    
+    g  = c[0]  + c[1]*XS[:,:, 0] + c[2]*XS[:,:,  1] ** 2 +  c[3] * np.sin(XS[:,:,  2] +  c[4] * np.cos(XS[:,:, 3]) + c[5]* np.exp(XS[:,:, 4]) ) + c[6]* T
+
 
     print("np.min(g)")
     print(np.min(g))

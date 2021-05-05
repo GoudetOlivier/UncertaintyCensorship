@@ -59,7 +59,7 @@ def _hyperrectangle_integration(lower,upper,correlation,maxpts,abseps,releps,inf
         if unone:
             upper = -lower
         pre_batch_shape = upper.shape[:-1]
-    cor = ascontiguousarray(correlation.numpy()[...,trind[0],trind[1]],dtype=float64)
+    cor = ascontiguousarray(correlation.cpu().numpy()[...,trind[0],trind[1]],dtype=float64)
 
     # broadcast all lower, upper, correlation
     batch_shape = broadcast_shape(pre_batch_shape,cor.shape[:-1])
@@ -85,7 +85,7 @@ def _hyperrectangle_integration(lower,upper,correlation,maxpts,abseps,releps,inf
         # Broadcast:
         c = broadcast_to(cor,batch_shape+[dd]).reshape(-1,dd)
         N = c.shape[0] # batch number
-        upp =  upper.numpy().astype(float64)
+        upp =  upper.detach().cpu().numpy().astype(float64)
         shape1 = batch_shape+[d]
         u = broadcast_to(upp,shape1).reshape(N,d)
         infu = u==Inf

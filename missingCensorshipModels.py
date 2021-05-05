@@ -93,17 +93,17 @@ class HeckMan_MNAR():
 
     def __init__(self, f, g, device):
 
-        self.f = f
-        self.g = g
+        self.f = f.to(device)
+        self.g = g.to(device)
 
         self.f.reset_parameters()
         self.g.reset_parameters()
 
-        self.rho = torch.rand(1,requires_grad=True)
+        self.rho = torch.rand(1,requires_grad=True, device = device)
 
         self.device = device
 
-        self.m = normal.Normal(torch.tensor([0.0]), torch.tensor([1.0]))
+        self.m = normal.Normal(torch.tensor([0.0]).to(device), torch.tensor([1.0]).to(device))
 
 
     def fit(self,  X, XS, T, delta, xi, probaDelta, eta1, eta2,  nb_epochs, batch_size):
@@ -135,7 +135,7 @@ class HeckMan_MNAR():
         dataloader = torch.utils.data.DataLoader(traindata, batch_size=batch_size, shuffle=True)
 
 
-        optimizer1 = optim.Adam([self.rho] + list(self.f.parameters()) + list(self.g.parameters()), lr=eta1)
+        optimizer1 = optim.Adam(list(self.f.parameters()) + list(self.g.parameters()), lr=eta1)
 
         optimizer2 = optim.Adam([self.rho], lr=eta2)
 
@@ -185,17 +185,20 @@ class HeckMan_MNAR():
                 #     print(self.m.cdf(fX)[:10])
 
 
+                            
                 diff_proba = torch.abs(self.m.cdf(fX) - probaDelta_batch).mean()
 
                 upper0 = -gXS
                 upper1 = torch.stack([gXS,fX],1)
                 upper2 = torch.stack([gXS,-fX],1)
 
+ 
+                
                 sum0 = -((1 - xi_batch) * torch.log(self.m.cdf(upper0))).sum() / X_batch.shape[0]
                 sum1 = -(delta_batch * xi_batch * torch.log(
-                    bivariateNormalCDF(upper1, self.rho, maxpts, abseps, releps))).sum() / X_batch.shape[0]
+                    bivariateNormalCDF(upper1, self.rho, maxpts, abseps, releps, self.device))).sum() / X_batch.shape[0]
                 sum2 = -((1 - delta_batch) * xi_batch * torch.log(
-                    bivariateNormalCDF(upper2, -self.rho, maxpts, abseps, releps))).sum() / X_batch.shape[0]
+                    bivariateNormalCDF(upper2, -self.rho, maxpts, abseps, releps, self.device))).sum() / X_batch.shape[0]
 
                 loss = sum0 + sum1 + sum2
 
@@ -230,7 +233,7 @@ class HeckMan_MNAR():
         T = torch.tensor(T).float().to(self.device)
 
 
-        out = self.m.cdf(self.f(X,T)).detach().numpy().squeeze(-1)
+        out = self.m.cdf(self.f(X,T)).detach().cpu().numpy().squeeze(-1)
 
 
         return out
@@ -243,14 +246,18 @@ class MAR():
 
     def __init__(self, f, device):
 
-        self.f = f
+        self.f = f.to(device)
+
 
         self.f.reset_parameters()
 
         self.device = device
 
-        self.m = normal.Normal(torch.tensor([0.0]), torch.tensor([1.0]))
+        self.m = normal.Normal(torch.tensor([0.0]).to(device), torch.tensor([1.0]).to(device))
 
+
+        
+        
     def fit(self,  X,  T, delta, probaDelta, eta, nb_epochs, batch_size):
 
 
@@ -325,7 +332,7 @@ class MAR():
 
         sigmo = torch.nn.Sigmoid()
 
-        out = sigmo(self.f(X,T)).detach().numpy().squeeze(-1)
+        out = sigmo(self.f(X,T)).detach().cpu().numpy().squeeze(-1)
 
 
         return out

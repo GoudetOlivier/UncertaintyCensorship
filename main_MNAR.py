@@ -4,7 +4,7 @@ from os import system
 import matplotlib.pyplot as plt
 import math
 from tqdm import tqdm
-
+import argparse
 from neuralnets import NNetWrapper as nnetwrapper
 from sklearn import neighbors
 from sklearn import svm
@@ -28,12 +28,23 @@ from missingCensorshipModels import MAR, HeckMan_MNAR,  Linear, Neural_network_r
 ##########
 if __name__ == '__main__':
 
+
+    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser.add_argument('num_expe', metavar='d', type=float, help='data')
+    
+    args = parser.parse_args()
+    
+    
+    num_device = args.num_expe
+
+    device = "cuda:" + str(num_device)
+    
     nb_iter = 100
 
     sample_size = 1000
 
 
-
+    rho = 0.25*num_device
 
     n_jobs_cross_val = 20
 
@@ -44,42 +55,45 @@ if __name__ == '__main__':
 
 
 
-    for type_data in ["exponential", "multivariate"]:
+    for type_data in [ "multivariate", "exponential"]:
 
         if (type_data == "exponential"):
 
-            a0 = 3
-            a1 = .5
-            a2 = .7
+ 
+            a = [3,0.5,0.7]
+            
+            b = [5,0.5,0.4]
+            
+            c = [0.2,0.5,1]
+    
 
-            b0 = 5
-            b1 = .5
-            b2 = .4
-
-            c0 = 3
-            c1 = 0.1
-            c2 = 0.2
-
-            rho = 0.5
-
-            Y, C, T, delta, xi,  X, XS, probaDelta = test_gen_data_exponential_Heckman_Mnar(nb_iter,sample_size, a0, a1, a2, b0, b1, b2 , c0, c1, c2, rho)
+            Y, C, T, delta, xi,  X, XS, probaDelta = test_gen_data_exponential_Heckman_Mnar(nb_iter,sample_size, a, b, c, rho)
+            
             print("frac delta obs")
-            print(np.sum(xi[0]))
+            print(np.sum(xi[0])/sample_size)
 
             print("th.sum(delta * xi)")
-            print(np.sum(delta[0] * xi[0]))
+            print(np.sum(delta[0] * xi[0])/sample_size)
 
             print("th.sum((1-delta) * xi)")
-            print(np.sum((1 - delta[0]) * xi[0]))
+            print(np.sum((1 - delta[0]) * xi[0])/sample_size)
 
         elif (type_data == "multivariate"):
 
-                rho = 0.5
 
-                Y, C, T, delta, xi,  X, XS, probaDelta = test_gen_data_multivariate_model_Heckman_Mnar(nb_iter, sample_size, rho)
+            a = [0.5,0.2,0.2,0.2,0.2,-0.02]
+            b = [20,5,3,1,1.5,5]
+            c = [-0.35,0.16,0.2,0.2,0.2,0.2,1]
+            sigma = 0.3
 
-                print("np.sum(xi[0])/sample_size")
-                print(np.sum(xi[0]) / sample_size)
+            Y, C, T, delta, xi,  X, XS, probaDelta = test_gen_data_multivariate_model_Heckman_Mnar(nb_iter, sample_size, a, b, c, sigma, rho)
+
+            print("frac delta obs")
+            print(np.sum(xi[0])/sample_size)
+            print("th.sum(delta * xi)")
+            print(np.sum(delta[0] * xi[0])/sample_size)
+            print("th.sum((1-delta) * xi)")
+            print(np.sum((1 - delta[0]) * xi[0])/sample_size)
 
 
 
@@ -105,11 +119,10 @@ if __name__ == '__main__':
 
         dict_p = {}
 
-        # list_model = ["Standard_beran", "True_proba", ]
 
-        list_model = ["Standard_beran", "True_proba", "NN" ,   "Linear",  "Linear_MAR", "NN_MAR" ]
-
-        # list_model = [ "NN_MAR"]
+        list_model = ["Standard_beran", "True_proba", "NN" , "NN_with_delta",  "Linear", "Linear_with_delta", "Linear_MAR", "NN_MAR" ]
+        
+        
 
         for type_model in list_model:
 
@@ -132,14 +145,18 @@ if __name__ == '__main__':
                 g = Linear(dS+1)
 
                 for k in range(nb_iter):
-
-                    hMnar = HeckMan_MNAR(f, g, "cpu")
-
-
-                    hMnar.fit(X[k,], XS[k,], T[k,], delta[k,], xi[k,], probaDelta[k,],0.00005, 0.001 ,500,100)
-
-                    p[k, :] = hMnar.predict(X[k,], T[k,])
-
+                
+                    relaunch = True
+                    while(relaunch==True):
+                    
+                        hMnar = HeckMan_MNAR(f, g, device)
+                        hMnar.fit(X[k,], XS[k,], T[k,], delta[k,], xi[k,], probaDelta[k,],0.00001,0.001 ,500,100)
+                        p[k, :] = hMnar.predict(X[k,], T[k,])
+                        
+                        if(np.isnan(np.sum(p[k, :]))==False):
+                            relaunch = False
+                        
+                    
 
 
 
@@ -151,12 +168,19 @@ if __name__ == '__main__':
 
                 for k in range(nb_iter):
 
-                    hMnar = HeckMan_MNAR(f, g, "cpu")
+                    relaunch = True
 
+                    while(relaunch):
+                    
+                        hMnar = HeckMan_MNAR(f, g, device)
+                        hMnar.fit(X[k], XS[k], T[k], delta[k], xi[k], probaDelta[k], 0.00001,0.001, 500,100)
 
-                    hMnar.fit(X[k], XS[k], T[k], delta[k], xi[k], probaDelta[k], 0.00005, 0.001, 500,100)
-
-                    p[k, :] = hMnar.predict(X[k,], T[k,])
+                        p[k, :] = hMnar.predict(X[k,], T[k,])
+                        
+                        if(np.isnan(np.sum(p[k, :]))==False):
+                            relaunch = False
+                        
+                    
 
 
             elif (type_model == "Linear_MAR"):
@@ -165,11 +189,21 @@ if __name__ == '__main__':
 
                 for k in range(nb_iter):
 
-                    mnar = MAR(f,  "cpu")
+                    relaunch = True
+                    
+                    while(relaunch):
+                        mnar = MAR(f, device)
 
-                    mnar.fit(list_X_obs[k],  list_T_obs[k], list_delta_obs[k], list_probaDelta_obs[k], 0.001, 500,100)
+                        mnar.fit(list_X_obs[k],  list_T_obs[k], list_delta_obs[k], list_probaDelta_obs[k], 0.00001, 500,100)
 
-                    p[k, :] = mnar.predict(X[k,], T[k,])
+
+                        p[k, :] = mnar.predict(X[k,], T[k,])
+                        
+                        if(np.isnan(np.sum(p[k, :]))==False):
+                            relaunch = False
+                        
+                        
+                    
 
 
             elif (type_model == "NN_MAR"):
@@ -178,14 +212,21 @@ if __name__ == '__main__':
 
                 for k in range(nb_iter):
 
-                    mnar = MAR(f,  "cpu")
+                    relaunch = True
+                    
+                    while(relaunch):
+                    
+                        mnar = MAR(f,  device)
 
-                    mnar.fit(list_X_obs[k],  list_T_obs[k], list_delta_obs[k], list_probaDelta_obs[k], 0.00005, 500,100)
+                        mnar.fit(list_X_obs[k],  list_T_obs[k], list_delta_obs[k], list_probaDelta_obs[k], 0.00001, 500,100)
 
-                    p[k, :] = mnar.predict(X[k,], T[k,])
+                        p[k, :] = mnar.predict(X[k,], T[k,])
 
-
-
+                        if(np.isnan(np.sum(p[k, :]))==False):
+                            relaunch = False
+                        
+                        
+                    
 
             if (type_model == "Linear_with_delta"):
 
@@ -221,9 +262,6 @@ if __name__ == '__main__':
 
             p = dict_p[type_model]
 
-            # list_best_h = Parallel(n_jobs=n_jobs_cross_val)(
-            #     delayed(cross_val_beran)(T.shape[1], T[k, :], delta[k, :], p[k, :], X[k, :], list_h, k) for k in
-            #     range(nb_iter))
 
             if (type_model == "Standard_beran"):
                 list_best_h = Parallel(n_jobs=n_jobs_cross_val)(
@@ -267,8 +305,13 @@ if __name__ == '__main__':
         dict_beran["Standard_Beran_delta_obs_only"] = beran
         list_model.append("Standard_Beran_delta_obs_only")
 
-        # plt.figure()
-
+        
+        
+        
+        #######################
+        # Compute results     #
+        #######################
+        
         df_results_mise = pd.DataFrame()
 
         true_cdf = np.zeros((num_t, len(x_list)))
@@ -279,15 +322,13 @@ if __name__ == '__main__':
 
             if (type_data == "exponential"):
 
-                true_cdf[:, i] = expon(scale=1 / (a0 + a1 * x_list[i] + a2 * x_list[i] ** 2)).cdf(t)
+                true_cdf[:, i] = expon(scale=1 / (a[0] + a[1] * x_list[i] + a[2] * x_list[i] ** 2)).cdf(t)
 
             elif (type_data == "multivariate"):
 
-                true_cdf[:, i] = norm(loc=0.5 + 1 / 5 * (
-                        np.sin(x_list[i]) + np.cos(x_list[i]) + x_list[i] ** 2 - 0.1 * np.exp(x_list[i]) + x_list[i]),
-                                      scale=0.3).cdf(t)
-
-
+                true_cdf[:, i] = norm(loc=a[0] + a[1]*x_list[i] + a[2]*x_list[i]**2 + a[3]*np.sin(x_list[i]) + a[4]*np.cos(x_list[i]) + a[5] * np.exp(x_list[i]),
+                                      scale=sigma).cdf(t)
+                                      
 
             df_results_mise["true_cdf_" + str(x_list[i])] = true_cdf[:, i]
 
@@ -304,7 +345,7 @@ if __name__ == '__main__':
 
 
         df_results_mise.to_csv(
-            "results/Mise_" + type_data + "_n_" + str(T.shape[1]) + "_nbIter_" + str(nb_iter) + ".csv")
+            "results/Mise_" + type_data + "_n_" + str(T.shape[1]) + "_nbIter_" + str(nb_iter) + "_rho_" + str(rho) + ".csv")
 
         df_results_global_score = pd.DataFrame()
 
@@ -320,6 +361,5 @@ if __name__ == '__main__':
 
 
         df_results_global_score.to_csv(
-            "results/Global_score_" + type_data + "_n_" + str(T.shape[1]) + "_nbIter_" + str(nb_iter) + ".csv")
+            "results/Global_score_" + type_data + "_n_" + str(T.shape[1]) + "_nbIter_" + str(nb_iter) + "_rho_" + str(rho) + ".csv")
 
-        # plt.savefig("results/fig_new2_" + type_data + "_n_" + str(T.shape[1]) + "_nbIter_" + str(nb_iter) + ".png")
