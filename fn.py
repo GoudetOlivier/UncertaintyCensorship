@@ -19,7 +19,43 @@ def quad_kern(x):
     return np.where(np.absolute(x)<=1,15/16*(1-x**2)**2,0)
 
 
+def Subramanian_estimator(X, T, delta, xi, h):
 
+    pi = np.zeros((X.shape[0]))
+    T = np.expand_dims(T, axis=1)
+
+    XT = np.hstack((X,T))
+
+    for i in range(X.shape[0]):
+
+        distance = np.linalg.norm(XT[i] - XT, axis=1)
+        kernel = quad_kern(distance/h)
+        pi[i] = np.sum(kernel*xi)/np.sum(kernel)
+
+
+    sigma = xi*delta
+    p = xi * sigma / pi
+
+    return p
+
+
+
+
+
+def Subramanian_estimator_no_covariate(T, delta, xi, h):
+
+    pi = np.zeros((T.shape[0]))
+
+    for i in range(T.shape[0]):
+
+        distance = np.abs(T[i] - T)
+        kernel = quad_kern(distance/h)
+        pi[i] = np.sum(kernel*xi)/np.sum(kernel)
+
+    sigma = xi*delta
+    p = xi * sigma / pi
+
+    return p
 
 
 
@@ -113,6 +149,13 @@ def test_gen_data_exponential_Heckman_Mnar(nb_iter, size, a, b, c, rho):
 
     probaDelta = mu2/(mu1 + mu2)
 
+    print("np.min(probaDelta)")
+    print(np.min(probaDelta))
+
+    print("np.max(probaDelta)")
+    print(np.max(probaDelta))
+
+
     f = norm.ppf(probaDelta)
 
     g = c[0] + c[1]*XS + c[2]*T
@@ -127,6 +170,11 @@ def test_gen_data_exponential_Heckman_Mnar(nb_iter, size, a, b, c, rho):
 
     probaXi_cond_delta = np.where( delta == 1, distDelta1.cdf(np.stack((g,f),2))/probaDelta, distDelta0.cdf(np.stack((g,-f),2))/(1-probaDelta))
 
+    print("np.min(probaXi_cond_delta)")
+    print(np.min(probaXi_cond_delta))
+
+    print("np.max(probaXi_cond_delta)")
+    print(np.max(probaXi_cond_delta))
 
     u = np.random.uniform(low=0.0, high=1.0, size=(nb_iter,size))
 
@@ -146,6 +194,288 @@ def test_gen_data_exponential_Heckman_Mnar(nb_iter, size, a, b, c, rho):
 
     return Y, C, T, delta, xi,  X, XS, probaDelta
 
+
+def test_gen_data_gamma_model_Heckman_Mnar(nb_iter, size, a, b, c,  rho):
+
+    X = np.random.uniform(low=0.0, high=1.0, size=(nb_iter, size, 3))
+    XS = np.random.uniform(low=0, high=1, size=(nb_iter, size, 1))
+
+    # k = a[0] + a[1]*X[:,:, 0] + a[2]*X[:,:, 1] + a[3]*X[:,:, 2]
+
+    k = a[0] + a[1] * X[:, :, 0] + a[2] * X[:, :, 1] + a[3] * X[:, :, 2]
+
+    Y = scipy.stats.gamma(k).rvs(size=(nb_iter, size))
+
+    # lambda_C = b[0] + b[1]*X[:,:, 0] + b[2]*X[:,:, 1] + b[3]*X[:,:, 2]
+
+    lambda_C = b[0] + b[1] * X[:, :, 0] + b[2] * X[:, :, 1] + b[3] * X[:, :, 2]
+
+    C = scipy.stats.expon(scale=1 / lambda_C).rvs(size=(nb_iter, size))
+
+    T = np.minimum(Y, C)
+
+    delta = np.where(Y <= C, 1, 0)
+
+    f_Y = scipy.stats.gamma(k).pdf(T)
+    f_C = scipy.stats.expon(scale=1 / lambda_C).pdf(T)
+
+    S_Y = 1 - scipy.stats.gamma(k).cdf(T)
+    S_C = 1 - scipy.stats.expon(scale=1 / lambda_C).cdf(T)
+
+    probaDelta = (f_Y * S_C) / (f_Y * S_C + f_C * S_Y)
+
+    print("np.min(probaDelta)")
+    print(np.min(probaDelta))
+
+    print("np.max(probaDelta)")
+    print(np.max(probaDelta))
+
+    print("np.mean(probaDelta)")
+    print(np.mean(probaDelta))
+
+    f = norm.ppf(probaDelta)
+
+    g = c[0] + c[1] * XS[:, :, 0] + c[2] * T
+
+    probaXi = norm.cdf(g)
+
+    mean = np.array([0, 0])
+
+    covarianceDelta0 = np.matrix([[1, -rho], [-rho, 1]])
+    covarianceDelta1 = np.matrix([[1, rho], [rho, 1]])
+
+    distDelta0 = mvn(mean=mean, cov=covarianceDelta0)
+    distDelta1 = mvn(mean=mean, cov=covarianceDelta1)
+
+    probaXi_cond_delta = np.where(delta == 1, distDelta1.cdf(np.stack((g, f), 2)) / probaDelta,
+                                  distDelta0.cdf(np.stack((g, -f), 2)) / (1 - probaDelta))
+
+    print("np.min(probaXi_cond_delta)")
+    print(np.min(probaXi_cond_delta))
+
+    print("np.max(probaXi_cond_delta)")
+    print(np.max(probaXi_cond_delta))
+
+    print("np.mean(probaXi_cond_delta)")
+    print(np.mean(probaXi_cond_delta))
+
+    u = np.random.uniform(low=0.0, high=1.0, size=(nb_iter, size))
+
+    xi = np.where(u < probaXi_cond_delta, 1, 0)
+
+    index = np.argsort(T, axis=1)
+
+    for i in range(nb_iter):
+        Y[i, :] = Y[i, index[i, :]]
+        C[i, :] = C[i, index[i, :]]
+        T[i, :] = T[i, index[i, :]]
+        delta[i, :] = delta[i, index[i, :]]
+        xi[i, :] = xi[i, index[i, :]]
+        X[i, :] = X[i, index[i, :]]
+        XS[i, :] = XS[i, index[i, :]]
+        probaDelta[i, :] = probaDelta[i, index[i, :]]
+        probaXi[i, :] = probaXi[i, index[i, :]]
+
+
+    return Y, C, T, delta, xi, X, XS, probaDelta, probaXi
+
+
+
+def test_gen_data_pareto_model_Heckman_Mnar(nb_iter, size, a, b, c,  rho):
+
+
+    X = np.random.uniform(low=0.0, high=1.0, size=(nb_iter, size, 3))
+    XS = np.random.uniform(low=0, high=1, size=(nb_iter, size, 1))
+
+    # k = a[0] + a[1]*X[:,:, 0] + a[2]*X[:,:, 1] + a[3]*X[:,:, 2]
+
+    k = a[0] + a[1] * X[:, :, 0] + a[2] * X[:, :, 1] + a[3] * X[:, :, 2]
+
+    Y = scipy.stats.pareto(k).rvs(size=(nb_iter, size))
+
+    # lambda_C = b[0] + b[1]*X[:,:, 0] + b[2]*X[:,:, 1] + b[3]*X[:,:, 2]
+
+    lambda_C = b[0] + b[1] * X[:, :, 0] + b[2] * X[:, :, 1] + b[3] * X[:, :, 2]
+
+    C = scipy.stats.expon(scale=1 / lambda_C).rvs(size=(nb_iter, size))
+
+    T = np.minimum(Y, C)
+
+    delta = np.where(Y <= C, 1, 0)
+
+    f_Y = scipy.stats.pareto(k).pdf(T)
+    f_C = scipy.stats.expon(scale=1 / lambda_C).pdf(T)
+
+    S_Y = 1 - scipy.stats.pareto(k).cdf(T)
+    S_C = 1 - scipy.stats.expon(scale=1 / lambda_C).cdf(T)
+
+    probaDelta = (f_Y * S_C) / (f_Y * S_C + f_C * S_Y)
+
+    print("np.min(probaDelta)")
+    print(np.min(probaDelta))
+
+    print("np.max(probaDelta)")
+    print(np.max(probaDelta))
+
+    print("np.mean(probaDelta)")
+    print(np.mean(probaDelta))
+
+    f = norm.ppf(probaDelta)
+
+    g = c[0] + c[1] * XS[:, :, 0] + c[2] * T
+
+    probaXi = norm.cdf(g)
+
+    mean = np.array([0, 0])
+
+    covarianceDelta0 = np.matrix([[1, -rho], [-rho, 1]])
+    covarianceDelta1 = np.matrix([[1, rho], [rho, 1]])
+
+    distDelta0 = mvn(mean=mean, cov=covarianceDelta0)
+    distDelta1 = mvn(mean=mean, cov=covarianceDelta1)
+
+    probaXi_cond_delta = np.where(delta == 1, distDelta1.cdf(np.stack((g, f), 2)) / probaDelta,
+                                  distDelta0.cdf(np.stack((g, -f), 2)) / (1 - probaDelta))
+
+    print("np.min(probaXi_cond_delta)")
+    print(np.min(probaXi_cond_delta))
+
+    print("np.max(probaXi_cond_delta)")
+    print(np.max(probaXi_cond_delta))
+
+    print("np.mean(probaXi_cond_delta)")
+    print(np.mean(probaXi_cond_delta))
+
+    u = np.random.uniform(low=0.0, high=1.0, size=(nb_iter, size))
+
+    xi = np.where(u < probaXi_cond_delta, 1, 0)
+
+    index = np.argsort(T, axis=1)
+
+    for i in range(nb_iter):
+        Y[i, :] = Y[i, index[i, :]]
+        C[i, :] = C[i, index[i, :]]
+        T[i, :] = T[i, index[i, :]]
+        delta[i, :] = delta[i, index[i, :]]
+        xi[i, :] = xi[i, index[i, :]]
+        X[i, :] = X[i, index[i, :]]
+        XS[i, :] = XS[i, index[i, :]]
+        probaDelta[i, :] = probaDelta[i, index[i, :]]
+        probaXi[i, :] = probaXi[i, index[i, :]]
+
+
+    return Y, C, T, delta, xi, X, XS, probaDelta, probaXi
+
+
+def test_gen_data_weibull_model_Heckman_Mnar(nb_iter, size, a, b, c,  rho):
+
+    X = np.random.uniform(low=0.0, high=1.0, size=(nb_iter, size,3))
+    # X = np.random.uniform(low=0, high=1, size=(nb_iter, size, 3))
+
+    XS = np.random.uniform(low=0, high=1, size=(nb_iter, size, 1))
+
+
+
+
+    # k = a[0] + a[1]*X[:,:, 0] + a[2]*X[:,:, 1] + a[3]*X[:,:, 2]
+
+    k = a[0] + a[1] * X[:,:, 0] + a[2] * X[:,:, 1] + a[3] * X[:,:, 2]
+
+    Y = scipy.stats.weibull_min(k).rvs(size=( nb_iter, size))
+
+
+    # lambda_C = b[0] + b[1]*X[:,:, 0] + b[2]*X[:,:, 1] + b[3]*X[:,:, 2]
+
+    lambda_C = b[0] + b[1] * X[:,:, 0] + b[2] * X[:,:, 1]  + b[3] * X[:,:, 2]
+
+
+
+
+
+    C = scipy.stats.expon(scale=1/lambda_C).rvs(size=( nb_iter, size))
+
+
+
+    T = np.minimum(Y, C)
+
+
+
+    delta = np.where(Y <= C, 1, 0)
+
+
+    f_Y = scipy.stats.weibull_min(k).pdf(T)
+    f_C = scipy.stats.expon(scale=1/lambda_C).pdf(T)
+
+    S_Y = 1 - scipy.stats.weibull_min(k).cdf(T)
+    S_C = 1 - scipy.stats.expon(scale=1/lambda_C).cdf(T)
+
+    probaDelta = (f_Y * S_C) / (f_Y * S_C + f_C * S_Y)
+
+    print("probaDelta")
+    print(probaDelta)
+
+    print("np.min(probaDelta)")
+    print(np.min(probaDelta))
+
+    print("np.max(probaDelta)")
+    print(np.max(probaDelta))
+
+    print("np.mean(probaDelta)")
+    print(np.mean(probaDelta))
+
+    f = norm.ppf(probaDelta)
+
+
+
+    g = c[0] + c[1] * XS[:, :, 0]  + c[2] * T
+
+    probaXi = norm.cdf(g)
+
+    print("probaXi")
+    print(probaXi)
+
+    mean = np.array([0, 0])
+
+    covarianceDelta0 = np.matrix([[1, -rho], [-rho, 1]])
+    covarianceDelta1 = np.matrix([[1, rho], [rho, 1]])
+
+    distDelta0 = mvn(mean=mean, cov=covarianceDelta0)
+    distDelta1 = mvn(mean=mean, cov=covarianceDelta1)
+
+    probaXi_cond_delta = np.where(delta == 1, distDelta1.cdf(np.stack((g, f), 2)) / probaDelta,
+                                  distDelta0.cdf(np.stack((g, -f), 2)) / (1 - probaDelta))
+
+    print("np.min(probaXi_cond_delta)")
+    print(np.min(probaXi_cond_delta))
+
+    print("np.max(probaXi_cond_delta)")
+    print(np.max(probaXi_cond_delta))
+
+    print("np.mean(probaXi_cond_delta)")
+    print(np.mean(probaXi_cond_delta))
+
+
+
+
+
+    u = np.random.uniform(low=0.0, high=1.0, size=(nb_iter, size))
+
+    xi = np.where(u < probaXi_cond_delta, 1, 0)
+
+    index = np.argsort(T, axis=1)
+
+    for i in range(nb_iter):
+        Y[i, :] = Y[i, index[i, :]]
+        C[i, :] = C[i, index[i, :]]
+        T[i, :] = T[i, index[i, :]]
+        delta[i, :] = delta[i, index[i, :]]
+        xi[i, :] = xi[i, index[i, :]]
+        X[i, :] = X[i, index[i, :]]
+        XS[i, :] = XS[i, index[i, :]]
+        probaDelta[i, :] = probaDelta[i, index[i, :]]
+        probaXi[i, :] = probaXi[i, index[i, :]]
+
+    return Y, C, T, delta, xi, X, XS, probaDelta, probaXi
 
 
 def test_gen_data_multivariate_model_Heckman_Mnar(nb_iter, size, a, b, c, sigma, rho):
@@ -400,7 +730,7 @@ def cross_val_beran(n,obs, delta, p, x,list_h,k):
             p_del_i = np.delete(p, i, 0)
             x_del_i = np.delete(x, i, 0)
 
-            estimated_cdf_del_i = beran_estimator(obs, obs_del_i, p_del_i, x =  x_del_i ,x_eval =  x[i],  h = h)
+            estimated_cdf_del_i = beran_estimator(obs, obs_del_i, p_del_i, x =  x_del_i ,x_eval =  x[i],  h = h, noCovariateMode=False)
             idx = np.where(obs[i] <= obs, 1, 0)
             score += np.sum(ind_usefull_pair[i,:]*(idx - estimated_cdf_del_i)**2)
 
@@ -412,6 +742,98 @@ def cross_val_beran(n,obs, delta, p, x,list_h,k):
             best_score = score
 
     return best_h
+
+
+
+def cross_val_beran_Subramanian_beran(n,obs, delta, xi,  x, list_h1, list_h2, k):
+
+    print("cross val " + str(k))
+
+    ind_usefull_pair = np.zeros((n,n))
+
+    for i in range(n):
+        for j in range(n):
+            if((delta[i] == 1 and delta[j] == 1)or (delta[i]==1 and obs[i] <= obs[j]) or (delta[j]==1 and obs[j] <= obs[i]) or (i==j)):
+                ind_usefull_pair[i,j] = 1
+
+    best_score = 99999999999999
+    best_h1 = -1
+    best_h2 = -1
+
+    for h1 in list_h1:
+
+        p = Subramanian_estimator(x, obs, delta, xi, h1)
+
+
+        for h2 in list_h2:
+
+            score = 0
+
+            for i in range(n):
+
+                obs_del_i = np.delete(obs, i, 0)
+                p_del_i = np.delete(p, i, 0)
+                x_del_i = np.delete(x, i, 0)
+
+                estimated_cdf_del_i = beran_estimator(obs, obs_del_i, p_del_i, x =  x_del_i ,x_eval =  x[i],  h = h2, noCovariateMode=False)
+                idx = np.where(obs[i] <= obs, 1, 0)
+                score += np.sum(ind_usefull_pair[i,:]*(idx - estimated_cdf_del_i)**2)
+
+            print("h1 : " + str(h1) + " h2 : " + str(h2) + " score : " + str(score))
+
+            if (score < best_score):
+
+                best_h1 = h1
+                best_h2 = h2
+
+                best_score = score
+
+    return best_h1, best_h2
+
+
+
+def cross_val_beran_Subramanian_Kaplan(n,obs, delta, xi,  x, list_h1,  k):
+
+    print("cross val " + str(k))
+
+    ind_usefull_pair = np.zeros((n,n))
+
+    for i in range(n):
+        for j in range(n):
+            if((delta[i] == 1 and delta[j] == 1)or (delta[i]==1 and obs[i] <= obs[j]) or (delta[j]==1 and obs[j] <= obs[i]) or (i==j)):
+                ind_usefull_pair[i,j] = 1
+
+    best_score = 99999999999999
+    best_h1 = -1
+
+    for h1 in list_h1:
+
+        p = Subramanian_estimator_no_covariate(obs, delta, xi, h1)
+
+        score = 0
+
+        for i in range(n):
+
+            obs_del_i = np.delete(obs, i, 0)
+            p_del_i = np.delete(p, i, 0)
+            x_del_i = np.delete(x, i, 0)
+
+            estimated_cdf_del_i = beran_estimator(obs, obs_del_i, p_del_i, x_del_i , x[i], -1, False, True)
+
+
+            idx = np.where(obs[i] <= obs, 1, 0)
+            score += np.sum(ind_usefull_pair[i,:]*(idx - estimated_cdf_del_i)**2)
+
+        print("bandwith : " + str(h1) + " score : " + str(score))
+
+        if (score < best_score):
+
+            best_h1 = h1
+
+            best_score = score
+
+    return best_h1
+
 
 
 
@@ -564,30 +986,30 @@ def gen_data_boston_housing(nb_iter):
     return surv, censor, obs, delta,  xi, x
 
 
-def beran_estimator(t,obs,p,x=None, x_eval=None, h=0.1, mode_test=False):
+def beran_estimator(t,obs,p,x=None, x_eval=None, h=0.1, mode_test=False, noCovariateMode=False):
 
     warnings.filterwarnings("ignore", category=RuntimeWarning)
 
     n = p.shape[0]
 
+    if(noCovariateMode == False):
+        if (x.ndim == 2):
+            distance = np.linalg.norm(x_eval-x, axis=1)
+        else:
+            distance = x - x_eval
 
-    if (x.ndim == 2):
-        distance = np.linalg.norm(x_eval-x, axis=1)
-    else:
-        distance = x - x_eval
 
+        if (mode_test):
+            W = 1 / (1 + np.arange(n))
+        else:
+            W = quad_kern(distance / h)
 
-    if (mode_test):
-        W = 1 / (1 + np.arange(n))
-    else:
-        W = quad_kern(distance / h)
+        sum_W = np.sum(W)
 
-    sum_W = np.sum(W)
-
-    if(sum_W > 0):
-        W = W/sum_W
-    else:
-        W = np.ones(n)/n
+        if(sum_W > 0):
+            W = W/sum_W
+        else:
+            W = np.ones(n)/n
 
     cdf = []
 
@@ -598,13 +1020,17 @@ def beran_estimator(t,obs,p,x=None, x_eval=None, h=0.1, mode_test=False):
 
     for i in range(n):
 
+        if(noCovariateMode):
+            v = (1 - 1 / (n - i+1)) ** p[i]
 
-        v = (1 - W[i] / (1-sumW))**p[i]
+        else:
+            v = (1 - W[i] / (1-sumW))**p[i]
+            sumW += W[i]
 
         if(math.isnan(v)):
             v = 0
 
-        sumW += W[i]
+
 
         cumV = cumV*v
 

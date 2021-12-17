@@ -20,7 +20,7 @@ import warnings
 
 import pandas as pd
 
-from missingCensorshipModels import MAR, HeckMan_MNAR,  Linear, Neural_network_regression
+from missingCensorshipModels import HeckMan_MAR, HeckMan_MNAR,  HeckMan_MNAR_two_steps, Linear, Neural_network_regression, WeibullMechanism
 
 
 ##########
@@ -28,23 +28,29 @@ from missingCensorshipModels import MAR, HeckMan_MNAR,  Linear, Neural_network_r
 ##########
 if __name__ == '__main__':
 
-
     parser = argparse.ArgumentParser(description='Process some integers.')
     parser.add_argument('num_expe', metavar='d', type=float, help='data')
     
     args = parser.parse_args()
     
+    num_expe = args.num_expe
     
-    num_device = args.num_expe
+    
+    
+    rho = 0.25 * num_expe%4
 
-    device = "cuda:" + str(num_device)
+    #device = "cuda:" + str(int(num_device))
+    device = "cpu"
+
     
-    nb_iter = 100
+
+    nb_iter = 200
 
     sample_size = 1000
 
 
-    rho = 0.25*num_device
+    name = "MAR001"
+
 
     n_jobs_cross_val = 20
 
@@ -53,313 +59,427 @@ if __name__ == '__main__':
     list_h = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
 
 
+    lr1 = 0.001
+    lr2 = 0.001
 
 
-    for type_data in [ "multivariate", "exponential"]:
+    nb_epoch_xi = 1000
+    nb_epoch_delta_rho = 1000
 
-        if (type_data == "exponential"):
-
- 
-            a = [3,0.5,0.7]
-            
-            b = [5,0.5,0.4]
-            
-            c = [0.2,0.5,1]
-    
-
-            Y, C, T, delta, xi,  X, XS, probaDelta = test_gen_data_exponential_Heckman_Mnar(nb_iter,sample_size, a, b, c, rho)
-            
-            print("frac delta obs")
-            print(np.sum(xi[0])/sample_size)
-
-            print("th.sum(delta * xi)")
-            print(np.sum(delta[0] * xi[0])/sample_size)
-
-            print("th.sum((1-delta) * xi)")
-            print(np.sum((1 - delta[0]) * xi[0])/sample_size)
-
-        elif (type_data == "multivariate"):
-
-
-            a = [0.5,0.2,0.2,0.2,0.2,-0.02]
-            b = [20,5,3,1,1.5,5]
-            c = [-0.35,0.16,0.2,0.2,0.2,0.2,1]
-            sigma = 0.3
-
-            Y, C, T, delta, xi,  X, XS, probaDelta = test_gen_data_multivariate_model_Heckman_Mnar(nb_iter, sample_size, a, b, c, sigma, rho)
-
-            print("frac delta obs")
-            print(np.sum(xi[0])/sample_size)
-            print("th.sum(delta * xi)")
-            print(np.sum(delta[0] * xi[0])/sample_size)
-            print("th.sum((1-delta) * xi)")
-            print(np.sum((1 - delta[0]) * xi[0])/sample_size)
+    batch_size = 100
 
 
 
-        list_Y_obs = [ Y[i,xi[i,:] == 1]  for i in range(nb_iter) ]
-        list_C_obs = [C[i, xi[i, :] == 1] for i in range(nb_iter)]
-        list_T_obs = [T[i, xi[i, :] == 1] for i in range(nb_iter)]
-        list_delta_obs = [delta[i, xi[i, :] == 1] for i in range(nb_iter)]
-        list_X_obs = [X[i, xi[i, :] == 1] for i in range(nb_iter)]
-        list_XS_obs = [XS[i, xi[i, :] == 1] for i in range(nb_iter)]
-        list_probaDelta_obs = [probaDelta[i, xi[i, :] == 1] for i in range(nb_iter)]
+    for type_data in ["weibull","gamma"]:
+
+        for noCovariateMode in [  False ]:
+
+            for ll in [1]:
+
+                if (type_data == "weibull"):
+
+                    if(noCovariateMode):
+                        a = [3, 0, 0, 0]
+                        b = [2.5, 0, 0, 0]
+                        c = [0.4, 0, -0.9]
+                    else:
+                        a = [3, 0.5, 0.7,0.2]
+                        b = [2.5, -2, 0.4,-0.5]
+                        c = [-0.7,1,0.5]
+
+                    Y, C, T, delta, xi, X, XS, probaDelta, probaXi = test_gen_data_weibull_model_Heckman_Mnar(nb_iter, sample_size,a, b, c, rho)
+
+                elif (type_data == "pareto"):
+
+                    if (noCovariateMode):
+                        a = [3, 0, 0, 0]
+                        b = [0.5, 0, 0, 0]
+                        c = [0.3, 0, -0.3]
+                    else:
+                        a = [3, 3, 4,1]
+                        b = [2, -0.1, 0.4,-0.5]
+                        c = [-0.2, 1, -0.3]
+
+                    Y, C, T, delta, xi, X, XS, probaDelta, probaXi = test_gen_data_pareto_model_Heckman_Mnar(nb_iter, sample_size,
+                                                                                                          a, b, c, rho)
+                elif (type_data == "gamma"):
+
+                    if (noCovariateMode):
+                        a = [3, 0, 0, 0]
+                        b = [0.5, 0, 0, 0]
+                        c = [0.3, 0, -0.3]
+                    else:
+                        a = [0.1, 2, 0.2,1]
+                        b = [1, -0.1, 0.4,-0.5]
+                        c = [-0.2, 1, -0.3]
+
+                    Y, C, T, delta, xi, X, XS, probaDelta, probaXi = test_gen_data_gamma_model_Heckman_Mnar(nb_iter, sample_size,
+                                                                                                          a, b, c, rho)
+
+                print("frac delta obs")
+                print(np.sum(xi[0])/sample_size)
+                print("th.sum(delta * xi)")
+                print(np.sum(delta[0] * xi[0])/sample_size)
+                print("th.sum((1-delta) * xi)")
+                print(np.sum((1 - delta[0]) * xi[0])/sample_size)
+                print("th.sum(delta * (1-xi))")
+                print(np.sum(delta[0] * (1-xi[0]))/sample_size)
+                print("th.sum((1-delta) * (1-xi))")
+                print(np.sum((1 - delta[0]) * (1-xi[0]))/sample_size)
 
 
-        if (X[0].ndim == 2):
-            d = X[0].shape[1]
-        else:
-            d = 1
+                list_Y_obs = [ Y[i,xi[i,:] == 1]  for i in range(nb_iter) ]
+                list_C_obs = [C[i, xi[i, :] == 1] for i in range(nb_iter)]
+                list_T_obs = [T[i, xi[i, :] == 1] for i in range(nb_iter)]
+                list_delta_obs = [delta[i, xi[i, :] == 1] for i in range(nb_iter)]
+                list_X_obs = [X[i, xi[i, :] == 1] for i in range(nb_iter)]
+                list_XS_obs = [XS[i, xi[i, :] == 1] for i in range(nb_iter)]
+                list_probaDelta_obs = [probaDelta[i, xi[i, :] == 1] for i in range(nb_iter)]
+                list_probaXi_obs = [probaXi[i, xi[i, :] == 1] for i in range(nb_iter)]
 
-        if (XS[0].ndim == 2):
-            dS = XS[0].shape[1]
-        else:
-            dS = 1
+                if (X[0].ndim == 2):
+                    d = X[0].shape[1]
+                else:
+                    d = 1
+
+                if (XS[0].ndim == 2):
+                    dS = XS[0].shape[1]
+                else:
+                    dS = 1
+
+                if (noCovariateMode):
+                    d = 0
+                    dS = 0
 
 
-        dict_p = {}
+                dict_p = {}
 
 
-        list_model = ["Standard_beran", "True_proba", "NN" , "NN_with_delta",  "Linear", "Linear_with_delta", "Linear_MAR", "NN_MAR" ]
-        
-        
+                # list_model = ["Standard_beran", "True_proba", "Subramanian", "NN_two_steps", "NN_two_steps_with_delta", "NN"  , "NN_with_delta",   "Linear", "Linear_with_delta", "Linear_MAR", "Linear_MAR_with_delta", "NN_MAR","NN_MAR_with_delta" ]
 
-        for type_model in list_model:
 
-            p = np.zeros((nb_iter, sample_size))
+                #list_model = ["Standard_beran", "True_proba", "Subramanian", "NN_together", "NN_two_steps", "NN_two_steps_with_delta", "NN_MAR",  "NN_MAR_with_delta"]
 
-            if (type_model == "Standard_beran"):
+                list_model = ["Standard_beran", "True_proba", "Subramanian","NN_two_steps", "NN_two_steps_with_delta","NN_MAR",  "NN_MAR_with_delta",  ]
 
-                p = delta
+                #list_model = ["NN_MAR", "NN_MAR_with_delta"]
+                #list_model = ["Linear", "Linear_with_delta", "Linear_MAR", "Linear_MAR_with_delta"]
 
-            elif (type_model == "True_proba"):
+                for type_model in list_model:
 
-                p = probaDelta
+                    p = np.zeros((nb_iter, sample_size))
 
-            elif (type_model == "Linear"):
+                    if (type_model == "Standard_beran"):
 
-                print("d : " + str(d))
-                print("dS : " + str(dS))
+                        p = delta
 
-                f = Linear(d+1)
-                g = Linear(dS+1)
+                    elif (type_model == "True_proba"):
 
-                for k in range(nb_iter):
-                
-                    relaunch = True
-                    while(relaunch==True):
-                    
-                        hMnar = HeckMan_MNAR(f, g, device)
-                        hMnar.fit(X[k,], XS[k,], T[k,], delta[k,], xi[k,], probaDelta[k,],0.00001,0.001 ,500,100)
-                        p[k, :] = hMnar.predict(X[k,], T[k,])
+                        p = probaDelta
+
+                    # elif (type_model == "Subramanian"):
+                    #
+                    #     for k in range(nb_iter):
+                    #         if(noCovariateMode):
+                    #             p[k, :] = Subramanian_estimator_no_covariate(T[k,], delta[k,], xi[k,], 0.5)
+                    #         else:
+                    #             p[k, :] = Subramanian_estimator(X[k,], T[k,], delta[k,], xi[k,], 0.5)
+
+                    elif (type_model == "Linear" or type_model == "NN" or type_model == "NN_two_steps"  or type_model == "sameClass"):
+
+                        if(type_model == "Linear"):
+
+                            f = Linear(d+1)
+                            g = Linear(dS+1)
+
+
+
+                        elif(type_model == "NN" or type_model == "NN_two_steps" ):
+
+
+                            if(noCovariateMode):
+                                f = Neural_network_regression([d + 1, 200, 200, 100, 1])
+                                g = Neural_network_regression([dS + 1, 200, 200, 100, 1])
+                                # f = Neural_network_regression([d + 1, 200, 100, 1])
+                                # g = Neural_network_regression([dS + 1, 200, 100, 1])
+                            else:
+                                f = Neural_network_regression([d + 1, 200, 200, 100, 1])
+                                g = Neural_network_regression([dS + 1, 200, 200, 100, 1])
+
+                        elif (type_model == "sameClass"):
+                            if (type_data == "weibull"):
+                                f = WeibullMechanism(d)
+                                g = Linear(dS + 1)
+
+
+
+                        print("lr1 : " + str(lr1))
+                        print("lr2 : " + str(lr2))
+
+
+                        for k in range(nb_iter):
+
+                            relaunch = True
+                            while (relaunch == True):
+
+                                # if(type_model == "NN_two_steps"):
+
+                                hMnar = HeckMan_MNAR_two_steps(f, g, device, noCovariateMode)
+
+                                print("fit xi")
+                                hMnar.fit_xi(XS[k,], T[k,], xi[k,], probaXi[k,], lr1, nb_epoch_xi, batch_size)
+
+
+
+                                print("fit delta rho")
+                                hMnar.fit_delta_rho(X[k,], XS[k,], T[k,], delta[k,], xi[k,], probaDelta[k,], lr1, lr2 ,nb_epoch_delta_rho, batch_size)
+
+                                p[k, :] = hMnar.predict(X[k,], T[k,])
+
+                                if (np.isnan(np.sum(p[k, :])) == False):
+
+                                    relaunch = False
+
+
+                                # else:
+                                #
+                                #     print("NN_together")
+                                #     hMnar = HeckMan_MNAR(f, g, device, noCovariateMode)
+                                #     hMnar.fit(X[k,], XS[k,], T[k,], delta[k,], xi[k,], probaDelta[k,],lr1, lr2 ,nb_epoch_delta_rho,batch_size)
+
+
+
+                    elif (type_model == "Linear_MAR" or type_model == "NN_MAR" or type_model == "sameClass_MAR"):
+
+
+                        if (type_model == "Linear_MAR"):
+
+                            f = Linear(d+1)
+
+                        elif (type_model == "NN_MAR"):
+
+                            if(noCovariateMode):
+                                f = Neural_network_regression([d + 1, 200, 200, 100, 1])
+
+                            else:
+                                f = Neural_network_regression([d + 1, 200, 200, 100, 1])
+
+
+                        lr = 0.001
                         
-                        if(np.isnan(np.sum(p[k, :]))==False):
-                            relaunch = False
-                        
-                    
 
+                        for k in range(nb_iter):
 
+                            relaunch = True
 
-            elif (type_model == "NN"):
+                            while(relaunch):
 
-                f = Neural_network_regression([d+1, 200, 100, 1])
-                g = Neural_network_regression([dS+1, 200, 100, 1])
+                                mnar = HeckMan_MAR(f,  device, noCovariateMode)
 
+                                mnar.fit(list_X_obs[k],  list_T_obs[k], list_delta_obs[k], list_probaDelta_obs[k], lr, nb_epoch_delta_rho, batch_size)
 
-                for k in range(nb_iter):
+                                p[k, :] = mnar.predict(X[k,], T[k,])
 
-                    relaunch = True
+                                if(np.isnan(np.sum(p[k, :]))==False):
+                                    relaunch = False
 
-                    while(relaunch):
-                    
-                        hMnar = HeckMan_MNAR(f, g, device)
-                        hMnar.fit(X[k], XS[k], T[k], delta[k], xi[k], probaDelta[k], 0.00001,0.001, 500,100)
 
-                        p[k, :] = hMnar.predict(X[k,], T[k,])
-                        
-                        if(np.isnan(np.sum(p[k, :]))==False):
-                            relaunch = False
-                        
-                    
+                    if (type_model == "Linear_with_delta"):
+                        dict_p["Linear_with_delta"] = dict_p["Linear"] * (1-xi) + delta * xi
+                    elif(type_model == "NN_with_delta"):
+                        dict_p["NN_with_delta"] = dict_p["NN"] * (1 - xi) + delta * xi
+                    elif(type_model == "Linear_MAR_with_delta"):
+                        dict_p["Linear_MAR_with_delta"] = dict_p["Linear_MAR"] * (1 - xi) + delta * xi
+                    elif(type_model == "NN_MAR_with_delta"):
+                        dict_p["NN_MAR_with_delta"] = dict_p["NN_MAR"] * (1 - xi) + delta * xi
 
+                    elif (type_model == "NN_two_steps_with_delta"):
+                        dict_p["NN_two_steps_with_delta"] = dict_p["NN_two_steps"] * (1 - xi) + delta * xi
 
-            elif (type_model == "Linear_MAR"):
 
-                f = Linear(d+1)
+                    else:
+                        dict_p[type_model] = p
 
-                for k in range(nb_iter):
 
-                    relaunch = True
-                    
-                    while(relaunch):
-                        mnar = MAR(f, device)
+                #######################
+                # Survival estimation #
+                #######################
+                print('Survival estimators computing')
 
-                        mnar.fit(list_X_obs[k],  list_T_obs[k], list_delta_obs[k], list_probaDelta_obs[k], 0.00001, 500,100)
+                dict_beran = {}
 
+                num_t = 100
 
-                        p[k, :] = mnar.predict(X[k,], T[k,])
-                        
-                        if(np.isnan(np.sum(p[k, :]))==False):
-                            relaunch = False
-                        
-                        
-                    
+                t = np.linspace(np.amin(Y), np.amax(Y), num=num_t)
 
+                for type_model in list_model:
 
-            elif (type_model == "NN_MAR"):
+                    print(type_model)
 
-                f = Neural_network_regression([d + 1, 200, 100, 1])
+                    beran = np.zeros((nb_iter, len(t), len(x_list)))
 
-                for k in range(nb_iter):
+                    pbar = tqdm(range(nb_iter))
 
-                    relaunch = True
-                    
-                    while(relaunch):
-                    
-                        mnar = MAR(f,  device)
+                    p = dict_p[type_model]
 
-                        mnar.fit(list_X_obs[k],  list_T_obs[k], list_delta_obs[k], list_probaDelta_obs[k], 0.00001, 500,100)
 
-                        p[k, :] = mnar.predict(X[k,], T[k,])
+                    if(noCovariateMode == False):
+                        if (type_model == "Standard_beran"):
+                            list_best_h = Parallel(n_jobs=n_jobs_cross_val)(
+                                delayed(cross_val_beran)(T.shape[1], T[k, :], delta[k, :], p[k, :],
+                                                         X[k, :], list_h, k) for k in
+                                range(nb_iter))
 
-                        if(np.isnan(np.sum(p[k, :]))==False):
-                            relaunch = False
-                        
-                        
-                    
+                        elif (type_model == "Subramanian"):
 
-            if (type_model == "Linear_with_delta"):
+                            print("OK OK ")
+                            # cross_val_beran_Subramanian(n, obs, delta, xi, x, list_h1, list_h2, k):
 
-                dict_p["Linear_with_delta"] = dict_p["Linear"] * (1-xi) + delta * xi
+                            list_best_h = Parallel(n_jobs=n_jobs_cross_val)(
+                                delayed(cross_val_beran_Subramanian_beran)(T.shape[1], T[k, :], delta[k, :], xi[k, :],
+                                                         X[k, :], list_h, list_h, k) for k in
+                                range(nb_iter))
 
-            elif(type_model == "NN_with_delta"):
 
-                dict_p["NN_with_delta"] = dict_p["NN"] * (1 - xi) + delta * xi
 
-            else:
 
-                dict_p[type_model] = p
+                        #     if (noCovariateMode):
+                        # #             p[k, :] = Subramanian_estimator_no_covariate(T[k,], delta[k,], xi[k,], 0.5)
+                        # #         else:
+                        # #             p[k, :] = Subramanian_estimator(X[k,], T[k,], delta[k,], xi[k,], 0.5)
+                        #
 
+                        else:
+                            list_best_h = Parallel(n_jobs=n_jobs_cross_val)(
+                                delayed(cross_val_beran_proba)(T.shape[1], T[k, :], p[k, :], X[k, :],
+                                                               list_h, k) for k in
+                                range(nb_iter))
 
-        #######################
-        # Survival estimation #
-        #######################
-        print('Survival estimators computing')
+                    else:
 
-        dict_beran = {}
+                        if (type_model == "Subramanian"):
 
-        num_t = 100
+                            list_best_h = Parallel(n_jobs=n_jobs_cross_val)(
+                                delayed(cross_val_beran_Subramanian_Kaplan)(T.shape[1], T[k, :], delta[k, :], xi[k, :],
+                                                                           X[k, :], list_h,  k) for k in
+                                range(nb_iter))
 
-        t = np.linspace(np.amin(Y), np.amax(Y), num=num_t)
+                            print("list_best_h")
+                            print(list_best_h)
 
-        for type_model in list_model:
 
-            print(type_model)
 
-            beran = np.zeros((nb_iter, len(t), len(x_list)))
+                    for k in pbar:
 
-            pbar = tqdm(range(nb_iter))
 
-            p = dict_p[type_model]
+                        if (type_model == "Subramanian"):
 
+                            if(noCovariateMode):
+                                p[k, :] = Subramanian_estimator_no_covariate(T[k,], delta[k,], xi[k,], list_best_h[k])
+                            else:
+                                p[k, :] = Subramanian_estimator(X[k,], T[k,], delta[k,], xi[k,],list_best_h[k][0] )
 
-            if (type_model == "Standard_beran"):
-                list_best_h = Parallel(n_jobs=n_jobs_cross_val)(
-                    delayed(cross_val_beran)(T.shape[1], T[k, :], delta[k, :], p[k, :],
-                                             X[k, :], list_h, k) for k in
-                    range(nb_iter))
+                        c_x = 0
+                        for x_eval in x_list:
 
-            else:
-                list_best_h = Parallel(n_jobs=n_jobs_cross_val)(
-                    delayed(cross_val_beran_proba)(T.shape[1], T[k, :], p[k, :], X[k, :],
-                                                   list_h, k) for k in
-                    range(nb_iter))
+                            if(noCovariateMode):
+                                beran[k, :, c_x] = beran_estimator(t, T[k, :], p[k, :], X[k, :], x_eval, -1, False,
+                                                                   True)
+                            else:
+                                if (type_model == "Subramanian"):
+                                    beran[k, :, c_x] = beran_estimator(t, T[k, :], p[k, :], X[k, :], x_eval, list_best_h[k][1],
+                                                                       False, False)
+                                else:
+                                    beran[k, :, c_x] = beran_estimator(t, T[k, :], p[k, :], X[k, :], x_eval, list_best_h[k], False, False)
 
-            for k in pbar:
+                            c_x += 1
 
-                c_x = 0
-                for x_eval in x_list:
+                    dict_beran[type_model] = beran
 
-                    beran[k, :, c_x] = beran_estimator(t, T[k, :], p[k, :], X[k, :], x_eval, list_best_h[k], False)
+                    np.save("save/" + type_model, beran)
 
-                    c_x += 1
 
-            dict_beran[type_model] = beran
+                #### Test beran on observed delta
+                print("Standard_Beran_delta_obs_only")
+                beran = np.zeros((nb_iter, len(t), len(x_list)))
 
-            np.save("save/" + type_model, beran)
+                if (noCovariateMode == False):
+                    list_best_h = Parallel(n_jobs=n_jobs_cross_val)(
+                        delayed(cross_val_beran)(list_T_obs[k].shape[0], list_T_obs[k], list_delta_obs[k], list_delta_obs[k],
+                                                 list_X_obs[k], list_h, k) for k in range(nb_iter))
 
+                for k in pbar:
+                    c_x = 0
+                    for x_eval in x_list:
+                        if (noCovariateMode == False):
+                            beran[k, :, c_x] = beran_estimator(t, list_T_obs[k], list_delta_obs[k], list_X_obs[k], x_eval,
+                                                              list_best_h[k], False, False)
 
-        #### Test beran on observed delta
-        print("Standard_Beran_delta_obs_only")
-        beran = np.zeros((nb_iter, len(t), len(x_list)))
-        list_best_h = Parallel(n_jobs=n_jobs_cross_val)(
-            delayed(cross_val_beran)(list_T_obs[k].shape[0], list_T_obs[k], list_delta_obs[k], list_delta_obs[k],
-                                     list_X_obs[k], list_h, k) for k in range(nb_iter))
+                        else:
+                            beran[k, :, c_x] = beran_estimator(t, list_T_obs[k], list_delta_obs[k], list_X_obs[k], x_eval, -1, False, True)
 
-        for k in pbar:
-            c_x = 0
-            for x_eval in x_list:
-                beran[k, :, c_x] = beran_estimator(t, list_T_obs[k], list_delta_obs[k], list_X_obs[k], x_eval, list_best_h[k], False)
+                        c_x += 1
+                dict_beran["Standard_Beran_delta_obs_only"] = beran
+                list_model.append("Standard_Beran_delta_obs_only")
 
-                c_x += 1
-        dict_beran["Standard_Beran_delta_obs_only"] = beran
-        list_model.append("Standard_Beran_delta_obs_only")
 
-        
-        
-        
-        #######################
-        # Compute results     #
-        #######################
-        
-        df_results_mise = pd.DataFrame()
 
-        true_cdf = np.zeros((num_t, len(x_list)))
 
-        df_results_mise["t"] = t
+                #######################
+                # Compute results     #
+                #######################
 
-        for i in range(len(x_list)):
+                df_results_mise = pd.DataFrame()
 
-            if (type_data == "exponential"):
+                true_cdf = np.zeros((num_t, len(x_list)))
 
-                true_cdf[:, i] = expon(scale=1 / (a[0] + a[1] * x_list[i] + a[2] * x_list[i] ** 2)).cdf(t)
+                df_results_mise["t"] = t
 
-            elif (type_data == "multivariate"):
+                for i in range(len(x_list)):
 
-                true_cdf[:, i] = norm(loc=a[0] + a[1]*x_list[i] + a[2]*x_list[i]**2 + a[3]*np.sin(x_list[i]) + a[4]*np.cos(x_list[i]) + a[5] * np.exp(x_list[i]),
-                                      scale=sigma).cdf(t)
-                                      
+                    if (type_data == "weibull"):
 
-            df_results_mise["true_cdf_" + str(x_list[i])] = true_cdf[:, i]
+                        true_cdf[:, i] =  scipy.stats.weibull_min(a[0] + a[1] * x_list[i] + a[2] * x_list[i] + a[3] * x_list[i]).cdf(t)
 
-            for idx, type_model in enumerate(list_model):
+                    elif (type_data == "pareto"):
 
-                beran = dict_beran[type_model]
-                mean_beran = np.mean(beran[:, :, i], axis=0)
+                        true_cdf[:, i] =  scipy.stats.pareto(a[0] + a[1] * x_list[i] + a[2] * x_list[i] + a[3] * x_list[i]).cdf(t)
 
-                df_results_mise[type_model + "_cdf_" + str(x_list[i])] = mean_beran
+                    elif (type_data == "gamma"):
 
-                mise_beran = np.mean((beran[:, :, i] - true_cdf[:, i]) ** 2, axis=0)
+                        true_cdf[:, i] =  scipy.stats.gamma(a[0] + a[1] * x_list[i] + a[2] * x_list[i] + a[3] * x_list[i]).cdf(t)
 
-                df_results_mise[type_model + "_mise_" + str(x_list[i])] = mise_beran
 
+                    df_results_mise["true_cdf_" + str(x_list[i])] = true_cdf[:, i]
 
-        df_results_mise.to_csv(
-            "results/Mise_" + type_data + "_n_" + str(T.shape[1]) + "_nbIter_" + str(nb_iter) + "_rho_" + str(rho) + ".csv")
+                    for idx, type_model in enumerate(list_model):
 
-        df_results_global_score = pd.DataFrame()
+                        beran = dict_beran[type_model]
+                        mean_beran = np.mean(beran[:, :, i], axis=0)
 
-        for idx, type_model in enumerate(list_model):
-            beran = dict_beran[type_model]
+                        df_results_mise[type_model + "_cdf_" + str(x_list[i])] = mean_beran
 
-            global_score = np.zeros((nb_iter))
+                        mise_beran = np.mean((beran[:, :, i] - true_cdf[:, i]) ** 2, axis=0)
 
-            for iter in range(nb_iter):
-                global_score[iter] = np.mean((beran[iter, :, :] - true_cdf) ** 2)
+                        df_results_mise[type_model + "_mise_" + str(x_list[i])] = mise_beran
 
-            df_results_global_score[type_model] = global_score
 
+                df_results_mise.to_csv(
+                    "new_results/Mise_" + name  + type_data + "_n_" + str(T.shape[1]) + "_nbIter_" + str(nb_iter) + "_rho_" + str(rho) + "_noCovariateMode_" + str(noCovariateMode) + ".csv")
 
-        df_results_global_score.to_csv(
-            "results/Global_score_" + type_data + "_n_" + str(T.shape[1]) + "_nbIter_" + str(nb_iter) + "_rho_" + str(rho) + ".csv")
+                df_results_global_score = pd.DataFrame()
+
+                for idx, type_model in enumerate(list_model):
+                    beran = dict_beran[type_model]
+
+                    global_score = np.zeros((nb_iter))
+
+                    for iter in range(nb_iter):
+                        global_score[iter] = np.mean((beran[iter, :, :] - true_cdf) ** 2)
+
+                    df_results_global_score[type_model] = global_score
+
+
+                df_results_global_score.to_csv(
+                    "new_results/Global_score_" + name + type_data + "_n_" + str(T.shape[1]) + "_nbIter_" + str(nb_iter) + "_rho_" + str(rho) + "_noCovariateMode_" + str(noCovariateMode) + ".csv")
 
